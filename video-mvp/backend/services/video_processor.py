@@ -1,6 +1,5 @@
 # backend/services/video_processor.py (actualizado con IA)
 import celery
-from sqlalchemy.orm import Session
 import ffmpeg
 import os
 import logging
@@ -8,6 +7,7 @@ from typing import Dict, Any
 from config.settings import settings
 import cv2
 import numpy as np
+from bson import ObjectId
 
 # Handle optional imports for AI features
 try:
@@ -25,8 +25,8 @@ except ImportError:
     whisper_available = False
 
 from utils.storage import storage_service
-from models.database import SessionLocal
-from models.video import VideoDB
+from models.database import get_database
+from models.video import VideoStatus
 from .object_detection import object_detection_service
 from .subtitle_generator import subtitle_generator_service
 from .branding_service import branding_service
@@ -39,103 +39,112 @@ logger = logging.getLogger(__name__)
 celery_app = celery.Celery('video_processor')
 celery_app.conf.broker_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-def get_db_session():
-    """Obtiene una sesión de base de datos"""
-    db = SessionLocal()
-    try:
-        return db
-    except Exception as e:
-        logger.error(f"Error obteniendo sesión de base de datos: {e}")
-        return None
-
 @celery_app.task
 def process_video_task(video_id: str):
     """
     Tarea de Celery para procesar un video
     """
     logger.info(f"Iniciando procesamiento del video: {video_id}")
-    
-    # Obtener sesión de base de datos
-    db = get_db_session()
-    if not db:
-        logger.error(f"No se pudo obtener sesión de base de datos para el video: {video_id}")
-        return {
-            "video_id": video_id,
-            "status": "failed",
-            "error": "No se pudo conectar a la base de datos"
-        }
-    
+
     try:
-        # Obtener registro del video
-        video_record = db.query(VideoDB).filter(VideoDB.id == video_id).first()
-        if not video_record:
-            raise ValueError(f"Video con ID {video_id} no encontrado en la base de datos")
+        # Since Celery doesn't support async functions, we'll use a sync approach
+        # For MongoDB, we'll use Motor's blocking methods via asyncio.run
+        import asyncio
         
-        # Actualizar estado a 'processing'
-        video_record.status = "processing"
-        db.commit()
-        
-        # Convertir video de 16:9 a 9:16
-        output_path = convert_to_vertical(video_record.original_file_path, video_id)
-        
-        # Aplicar recorte inteligente basado en IA si se detectan objetos relevantes
-        output_path = apply_smart_crop(output_path, video_id)
-        
-        # Aplicar subtítulos si es necesario
-        if video_record.add_subtitles:
-            output_path = add_subtitles(output_path, video_id)
-        
-        # Aplicar branding si es necesario
-        if video_record.add_branding:
-            output_path = add_branding(output_path, video_id)
-        
-        # Subir archivo procesado al almacenamiento
-        final_object_name = f"processed_videos/{video_id}_converted.mp4"
-        if storage_service.upload_file(output_path, final_object_name):
-            # Actualizar registro con ruta del archivo procesado
-            if storage_service.enabled:
-                video_record.processed_file_path = f"s3://{storage_service.bucket_name}/{final_object_name}"
+        async def update_video_status():
+            # Obtener base de datos
+            db = get_database()
+
+            # Obtener registro del video
+            video_record = await db.videos.find_one({"_id": ObjectId(video_id)})
+            if not video_record:
+                raise ValueError(f"Video con ID {video_id} no encontrado en la base de datos")
+
+            # Actualizar estado a 'processing'
+            await db.videos.update_one(
+                {"_id": ObjectId(video_id)},
+                {"$set": {"status": VideoStatus.PROCESSING.value}}
+            )
+
+            # Convertir video de 16:9 a 9:16
+            output_path = convert_to_vertical(video_record["original_file_path"], video_id)
+
+            # Aplicar recorte inteligente basado en IA si se detectan objetos relevantes
+            output_path = apply_smart_crop(output_path, video_id)
+
+            # Aplicar subtítulos si es necesario
+            if video_record["add_subtitles"]:
+                output_path = add_subtitles(output_path, video_id)
+
+            # Aplicar branding si es necesario
+            if video_record["add_branding"]:
+                output_path = add_branding(output_path, video_id)
+
+            # Subir archivo procesado al almacenamiento
+            final_object_name = f"processed_videos/{video_id}_converted.mp4"
+            if storage_service.upload_file(output_path, final_object_name):
+                # Actualizar registro con ruta del archivo procesado
+                if storage_service.enabled:
+                    processed_file_path = f"s3://{storage_service.bucket_name}/{final_object_name}"
+                else:
+                    # En modo simulado, usamos la ruta local donde se "subió"
+                    storage_path = settings.TMP_DIR
+                    processed_file_path = os.path.join(storage_path, final_object_name)
+
+                # Actualizar estado a completado
+                await db.videos.update_one(
+                    {"_id": ObjectId(video_id)},
+                    {"$set": {"status": VideoStatus.COMPLETED.value, "processed_file_path": processed_file_path}}
+                )
+
+                # Eliminar archivos temporales
+                cleanup_temp_files([video_record["original_file_path"], output_path])
+
+                return {
+                    "video_id": video_id,
+                    "status": "completed",
+                    "output_path": processed_file_path
+                }
             else:
-                # En modo simulado, usamos la ruta local donde se "subió"
-                storage_path = settings.TMP_DIR
-                video_record.processed_file_path = os.path.join(storage_path, final_object_name)
-                
-            video_record.status = "completed"
-            db.commit()
-            
-            # Eliminar archivos temporales
-            cleanup_temp_files([video_record.original_file_path, output_path])
-            
-            return {
-                "video_id": video_id,
-                "status": "completed",
-                "output_path": video_record.processed_file_path
-            }
-        else:
-            logger.error(f"FALLO: No se pudo subir el archivo procesado para {video_id}")
-            video_record.status = "failed"
-            db.commit()
-            raise Exception("Error al subir el archivo procesado")
+                logger.error(f"FALLO: No se pudo subir el archivo procesado para {video_id}")
+                # Actualizar estado a fallido
+                await db.videos.update_one(
+                    {"_id": ObjectId(video_id)},
+                    {"$set": {"status": VideoStatus.FAILED.value}}
+                )
+                raise Exception("Error al subir el archivo procesado")
+
+        # Run the async function synchronously
+        import nest_asyncio
+        nest_asyncio.apply()
         
+        return asyncio.run(update_video_status())
+
     except Exception as e:
         logger.error(f"Error procesando video {video_id}: {str(e)}")
-        
-        # Actualizar estado a fallido
+
         try:
-            video_record = db.query(VideoDB).filter(VideoDB.id == video_id).first()
-            if video_record:
-                video_record.status = "failed"
-                db.commit()
+            # Actualizar estado a fallido
+            import asyncio
+            import nest_asyncio
+            nest_asyncio.apply()
+            
+            async def update_failed_status():
+                db = get_database()
+                await db.videos.update_one(
+                    {"_id": ObjectId(video_id)},
+                    {"$set": {"status": VideoStatus.FAILED.value}}
+                )
+            
+            asyncio.run(update_failed_status())
         except Exception as db_error:
             logger.error(f"Error actualizando estado en DB: {db_error}")
-        
+
         return {
             "video_id": video_id,
             "status": "failed",
             "error": str(e)
         }
-    finally:
-        db.close()
 
 def convert_to_vertical(input_path: str, video_id: str) -> str:
     """

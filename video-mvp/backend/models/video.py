@@ -1,25 +1,58 @@
 # backend/models/video.py
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
-from sqlalchemy.sql import func
-from .database import Base
 from pydantic import BaseModel
 from typing import Optional
-import uuid
+from datetime import datetime
+from bson import ObjectId
+from pydantic import Field
+from enum import Enum
 
-# Modelo de SQLAlchemy para la base de datos
-class VideoDB(Base):
-    __tablename__ = "videos"
+# Custom ObjectId field for Pydantic
+from pydantic.json_schema import JsonSchemaValue
+from typing import Any
 
-    id = Column(String, primary_key=True, index=True)
-    original_filename = Column(String, index=True)
-    title = Column(String, index=True)
-    original_file_path = Column(String)
-    processed_file_path = Column(String, nullable=True)
-    add_subtitles = Column(Boolean, default=False)
-    add_branding = Column(Boolean, default=False)
-    status = Column(String, default="uploaded")  # uploaded, processing, completed, failed
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+class PyObjectId(ObjectId):
+    @classmethod
+    def __get_pydantic_core_schema__(cls, source_type, handler):
+        from pydantic_core import core_schema
+        return core_schema.no_info_after_validator_function(
+            cls.validate,
+            core_schema.str_schema(),
+        )
+
+    @classmethod
+    def validate(cls, v):
+        if not ObjectId.is_valid(v):
+            raise ValueError("Invalid objectid")
+        return ObjectId(v)
+
+    @classmethod
+    def __get_pydantic_json_schema__(cls, core_schema: JsonSchemaValue, handler) -> JsonSchemaValue:
+        return handler(core_schema)
+
+# Enum for video status
+class VideoStatus(str, Enum):
+    UPLOADED = "uploaded"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+# MongoDB Document Model
+class VideoDocument(BaseModel):
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
+    original_filename: str
+    title: str
+    original_file_path: str
+    processed_file_path: Optional[str] = None
+    add_subtitles: bool = False
+    add_branding: bool = False
+    status: VideoStatus = VideoStatus.UPLOADED
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 # Modelos de Pydantic para la API
 class VideoMetadataBase(BaseModel):
@@ -33,17 +66,18 @@ class VideoMetadataCreate(VideoMetadataBase):
     pass
 
 class VideoMetadataUpdate(BaseModel):
-    status: Optional[str] = None
+    status: Optional[VideoStatus] = None
     processed_file_path: Optional[str] = None
 
 class VideoMetadata(VideoMetadataBase):
     id: str
     processed_file_path: Optional[str] = None
-    status: str = "uploaded"
-    created_at: Optional[str] = None
+    status: VideoStatus = VideoStatus.UPLOADED
+    created_at: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
 
 class VideoStatusResponse(BaseModel):
     video_id: str

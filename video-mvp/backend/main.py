@@ -1,18 +1,25 @@
 # backend/main.py (actualizado con IA)
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from api.endpoints import upload, download
-from models.database import engine, Base
+from models.database import connect_to_mongo, close_mongo_connection
 from config.settings import settings
 from config.ai_settings import ai_settings
 import os
 
-# Crear tablas en la base de datos
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await connect_to_mongo()
+    yield
+    # Shutdown
+    await close_mongo_connection()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version="1.0.0",
-    openapi_url=f"{settings.API_V1_STR}/openapi.json"
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 # Incluir routers
@@ -23,6 +30,7 @@ app.include_router(download.router, prefix=settings.API_V1_STR, tags=["download"
 def read_root():
     return {
         "message": f"{settings.PROJECT_NAME} is running!",
+        "database": "MongoDB",
         "ai_features": {
             "object_detection": "enabled",
             "subtitle_generation": "enabled",
@@ -30,16 +38,49 @@ def read_root():
         }
     }
 
+# Global variable to hold the database client
+db_client = None
+
 @app.get("/health")
-def health_check():
+async def health_check():
+    from models.database import client, get_database
+    from config.settings import settings
+
+    # Check database connectivity
+    db_status = "disconnected"
+    db_details = {
+        "status": db_status,
+        "connection_string": settings.MONGODB_URL,
+        "database_name": settings.MONGODB_DATABASE
+    }
+
+    try:
+        # Check if the client is available and connected
+        if client:
+            # Ping the database to check connectivity
+            await client.admin.command("ping")
+            db_status = "connected"
+            db_details["status"] = db_status
+        else:
+            db_details["status"] = "not_initialized"
+            db_details["message"] = "Database client not initialized. Check if startup event ran."
+    except Exception as e:
+        db_details["status"] = f"error: {str(e)}"
+
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "version": "1.0.0",
+        "database": db_details,
         "ai_models_loaded": {
             "yolo_model": ai_settings.YOLO_MODEL_PATH,
             "whisper_model": ai_settings.WHISPER_MODEL_SIZE
         }
     }
+
+# Also expose health check at the API versioned path for consistency
+@app.get("/api/v1/health")
+async def health_check_api_v1():
+    return await health_check()
 
 # Middleware para manejar CORS si es necesario
 from fastapi.middleware.cors import CORSMiddleware

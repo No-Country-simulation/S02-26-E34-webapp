@@ -1,96 +1,172 @@
-# S02-26-Equipo 34-Web App Development
+# 🎬 S02-26-E34-Web App Development - MVP: Conversor Video Horizontal → Vertical
 
-## I. Planteamiento del MVP
+Plataforma SaaS que convierte automáticamente videos horizontales (16:9) en verticales (9:16) optimizados para TikTok, Instagram Reels y YouTube Shorts.
 
-### 1. Problema a resolver
+## 🚀 Características
 
-* Los videos horizontales pierden impacto al adaptarse a formato vertical.
-* El recorte manual consume tiempo y recursos.
-* Startups y pymes necesitan presencia constante en redes sociales pero no tienen equipos dedicados a edición.
+- Subida de videos mediante arrastrar y soltar
+- Conversión automática de 16:9 a 9:16
+- Reencuadre inteligente con detección de rostros/objetos
+- Generación de subtítulos automáticos
+- Overlay de branding (logo/texto)
+- Descarga de videos convertidos
+- Indicador de estado del backend
+- Manejo de errores con SweetAlert2
 
-### 2. Objetivo del proyecto
+## 🛠️ Tecnologías utilizadas
 
-* Desarrollar una solución que convierta automáticamente videos horizontales en verticales, optimizando el encuadre para que no se pierda información relevante.
-* Generar shorts automáticos a partir de videos largos, listos para publicar en redes sociales.
-* Reducir la carga operativa de edición para emprendedores y empresas pequeñas.
+### Frontend
 
-### 3. Propuesta de solución
+- Next.js 16.1.6 (App Router)
+- React 19.2.3
+- TypeScript
+- Tailwind CSS
+- react-dropzone
+- video.js
+- SweetAlert2
 
-* Algoritmo de detección de zonas de interés (rostros, objetos, texto en pantalla) para reencuadrar automáticamente.
-* Automatización de cortes: identificar momentos clave del video (picos de audio, frases destacadas, cambios de escena) y generar clips cortos.
-* Plantillas de branding: añadir logo, subtítulos automáticos y llamados a la acción.
-* Integración con redes sociales: exportar directamente a TikTok, Instagram Reels y YouTube Shorts.
+### Backend
 
-### 4. Beneficios
+- Python 3.10+
+- FastAPI
+- Celery
+- Redis
+- **MongoDB** (migrado desde PostgreSQL para mayor flexibilidad)
+- FFmpeg
+- YOLOv8 (Ultralytics)
+- OpenCV
+- Whisper (OpenAI)
 
-* Mayor visibilidad y autoridad en redes sociales.
-* Ahorro de tiempo y costos de edición.
-* Escalabilidad: producir más contenido sin aumentar el equipo.
-* Networking y captación de clientes/talentos gracias a presencia constante.
+## 📁 Estructura del proyecto
 
-### 5. Público objetivo
+```text
+S02-26-E34-webapp/
+├── video-mvp/              # Directorio principal del MVP
+│   ├── backend/            # API con FastAPI (Gestionado con UV)
+│   └── frontend/           # Aplicación Next.js (Versión Actualizada)
+├── analisis.md             # Análisis del proyecto
+├── readme.md               # Este archivo
+└── .gitignore              # Reglas de exclusión para Git
+```
 
-* Startups que necesitan crecer rápido en redes.
-* Pymes que buscan aumentar ventas con marketing digital.
-* Emprendedores que quieren posicionarse como referentes en su sector.
+## 🏃‍♂️ Ejecución del proyecto
 
-### 6. Posibles tecnologías
+### Requisitos previos
 
-* IA de visión por computadora (para detectar rostros/objetos).
-* Procesamiento de lenguaje natural (para identificar frases clave).
-* Herramientas de edición automática (FFmpeg, OpenCV, APIs de subtitulado).
-* Integración SaaS: plataforma web donde el usuario sube su video y recibe shorts listos.
+- **Node.js 18+** y **npm**
+- **UV** (Gestor de paquetes de Python)
+- **MongoDB** y **Redis** instalados y en ejecución localmente
+- **FFmpeg** instalado en el sistema
 
----
+### 1. Configuración del Backend (Python + UV)
 
-## II. Viabilidad y estrategia
+El backend utiliza `uv` para una gestión de dependencias ultrarrápida y consistente.
 
-### 1. Viabilidad técnica
+```bash
+cd video-mvp/backend
+# Instalar Python (si es necesario) y sincronizar dependencias
+uv sync
 
-* **Conversión de formato y orientación**: se puede hacer con librerías como FFmpeg (muy usada en backend para procesamiento de video).
-* **Reencuadre automático**: con técnicas simples (crop + resize) o más avanzadas (detección de rostros/objetos con OpenCV o modelos de visión por computadora).
-* **Exportación**: FFmpeg permite exportar en MP4, MOV, etc.
-* **Publicación directa en redes sociales**: aquí la complejidad aumenta porque necesitaríamos integrar APIs de cada plataforma (YouTube, TikTok, Instagram). Algunas son abiertas, otras más restrictivas.
+# Configurar variables de entorno
+cp .env.example .env
+# Edita el archivo .env con tus credenciales locales de MongoDB y Redis
+```
 
-### 2. Flujo del MVP
+**Iniciar Backend:**
 
-1. Subida del video (drag & drop o selector de archivo).
-2. Procesamiento en servidor:
-   * Detectar proporción (16:9 → 9:16).
-   * Reencuadrar (crop + resize).
-   * Opcional: subtítulos automáticos o branding.
-3. Descarga del archivo convertido (MP4 vertical).
-4. (Opcional avanzado): botón de publicar en redes sociales vía API.
+```bash
+uv run python main.py
+# El servidor iniciará en http://localhost:8000
+```
 
-### 3. Complejidad
+### 2. Configuración del Frontend
 
-* **Básico (MVP realista)**: subir → convertir → descargar.
-  * Poco complejo si se usa FFmpeg en backend y un framework web (Node.js, Django, etc.).
-  * Se puede tener en semanas.
-* **Avanzado (automatización + publicación)**:
-  * Requiere integración con APIs de redes sociales, autenticación OAuth, gestión de permisos.
-  * Aquí sí se vuelve más complejo, pero escalable como SaaS.
+```bash
+cd video-mvp/frontend
+# Instalar dependencias
+npm install
 
-### 4. Estrategia de MVP
+# Configurar variables de entorno
+# Crea un archivo .env.local si es necesario con:
+# NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+```
 
-* **Primera versión (MVP)**: solo conversión y descarga.
-* **Segunda versión**: añadir subtítulos automáticos y plantillas de branding.
-* **Tercera versión**: integración con redes sociales para publicar directamente.
+**Iniciar Frontend:**
 
-### 5. Benchmark
+```bash
+npm run dev
+# La aplicación estará disponible en http://localhost:3000
+```
 
-* **Convertio**: hace algo similar con archivos (usa FFmpeg detrás).
-* **Herramientas**: como Kapwing, Veed.io, Clipchamp ya ofrecen recorte automático, pero nuestro diferencial sería automatizar shorts verticales desde horizontales con foco en startups/pymes.
+## 🔄 Migración de PostgreSQL a MongoDB
 
-## III. Estructura del Proyecto
+Este proyecto fue migrado desde PostgreSQL a MongoDB para mejorar la flexibilidad del almacenamiento de datos. Las principales diferencias incluyen:
 
-El desarrollo técnico se encuentra en la carpeta `video-mvp/`, dividida en:
+- Cambio de modelo relacional a modelo de documentos
+- Eliminación de dependencias de SQLAlchemy y psycopg2
+- Adición de dependencias de Motor y PyMongo
+- Actualización de operaciones de base de datos para usar sintaxis asíncrona de MongoDB
+- Mayor flexibilidad en el esquema de datos
+- Soporte nativo para documentos complejos
+- Escalabilidad horizontal
 
-* **Backend**: Localizado en `video-mvp/backend/`. Desarrollado con FastAPI, Python y UV.
-* **Frontend**: Localizado en `video-mvp/frontend/`. Desarrollado con Next.js y Tailwind CSS.
+## 🎨 Mejoras del Frontend
 
-Para más detalles sobre cómo ejecutar cada parte, consulta el [README de video-mvp](video-mvp/README.md).
+- Implementación de SweetAlert2 para manejo de errores y mensajes
+- Indicador de estado del backend con verificación automática
+- Deshabilitación de funcionalidades cuando el backend está offline
+- Interfaz de usuario mejorada con notificaciones amigables
 
-## Conclusión
+## 🔧 API Endpoints
 
-La idea es viable y realizable. El flujo no es muy complejo si se limita al MVP (subir → convertir → descargar). La parte de publicación en redes sociales sí añade complejidad, pero puede ser una segunda etapa.
+- `POST /api/v1/upload/` - Subir un video para procesamiento
+- `GET /api/v1/status/{video_id}` - Verificar estado de procesamiento
+- `GET /api/v1/download/{video_id}` - Descargar video procesado
+- `GET /health` - Verificar estado del servicio
+- `GET /` - Información del servicio
+
+## 🧪 Pruebas
+
+Para ejecutar pruebas unitarias:
+```bash
+# En el directorio backend
+uv run pytest
+```
+
+## 📊 Base de Datos
+
+### MongoDB
+El sistema ahora utiliza MongoDB como base de datos principal para almacenar metadatos de videos. Esta migración proporciona:
+
+- Mayor flexibilidad en el esquema de datos
+- Soporte nativo para documentos complejos
+- Escalabilidad horizontal
+- Índices eficientes para consultas de metadatos
+
+### Colecciones
+La aplicación crea automáticamente la colección `videos` con los siguientes índices:
+- `_id` (índice primario)
+- `original_filename`
+- `title`
+- `status`
+
+## 🚀 Despliegue
+
+### Requisitos previos
+- MongoDB (versión 4.0 o superior)
+- Redis (para Celery)
+- Python 3.10 o superior
+- Node.js 18+ y npm
+
+### Pasos para despliegue
+1. Clonar el repositorio
+2. Instalar dependencias del backend con `uv sync`
+3. Instalar dependencias del frontend con `npm install`
+4. Configurar variables de entorno en ambos `.env` (backend) y `.env.local` (frontend)
+5. Asegurarse de que MongoDB y Redis estén corriendo
+6. Ejecutar el backend con `uv run python main.py`
+7. Ejecutar el frontend con `npm run dev`
+
+## 📝 Licencia
+
+Este proyecto está licenciado bajo la Licencia MIT - consulta el archivo LICENSE para más detalles.

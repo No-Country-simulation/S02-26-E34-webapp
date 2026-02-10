@@ -6,10 +6,13 @@ import { useDropzone } from 'react-dropzone';
 import VideoPreview from '@/components/VideoPreview';
 import UploadZone from '@/components/UploadZone';
 import DownloadButton from '@/components/DownloadButton';
+import BackendStatusIndicator from '@/components/BackendStatusIndicator';
 import { uploadVideo, checkStatus, API_BASE_URL } from '@/lib/api';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
 import FeedbackCollector from '@/components/FeedbackCollector';
 import { useVideoStore } from '@/lib/store';
+import { showError, showSuccess, showInfo } from '@/lib/sweetalert';
+import useBackendStatus from '@/lib/useBackendStatus';
 
 export default function Home() {
   const {
@@ -32,6 +35,8 @@ export default function Home() {
   const [durationError, setDurationError] = useState<string | null>(null);
   const [videoFileLocal, setVideoFileLocal] = useState<File | null>(null);
 
+  const { isOnline: isBackendOnline, isLoading: isBackendLoading } = useBackendStatus();
+
   // Mostrar tutorial solo en la primera visita
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial');
@@ -47,7 +52,7 @@ export default function Home() {
 
       // Validar tamaño del archivo (máximo 100MB)
       if (file.size > 100 * 1024 * 1024) {
-        alert('El archivo excede el tamaño máximo de 100MB');
+        showError('Archivo demasiado grande', 'El archivo excede el tamaño máximo de 100MB');
         return;
       }
 
@@ -74,6 +79,25 @@ export default function Home() {
 
   const handleConvert = async () => {
     if (!videoFileLocal) return;
+
+    // Check backend status before processing
+    try {
+      const healthUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/health`;
+      const response = await fetch(healthUrl);
+      if (!response.ok) {
+        showInfo(
+          'Backend no disponible',
+          'El servidor backend no está disponible. Por favor, asegúrate de que esté corriendo antes de intentar procesar videos.'
+        );
+        return;
+      }
+    } catch (error) {
+      showInfo(
+        'Backend no disponible',
+        'No se pudo conectar con el servidor backend. Por favor, asegúrate de que esté corriendo antes de intentar procesar videos.'
+      );
+      return;
+    }
 
     try {
       setVideoFile(videoFileLocal);
@@ -105,18 +129,18 @@ export default function Home() {
             setTimeout(pollStatus, 2000); // Seguir verificando cada 2 segundos
           } else if (statusResponse.status === 'failed') {
             setIsProcessing(false);
-            alert('Hubo un error al procesar el video. Por favor, inténtalo de nuevo.');
+            showError('Error en el procesamiento', 'Hubo un error al procesar el video. Por favor, inténtalo de nuevo.');
           }
         } catch (error) {
           setIsProcessing(false);
-          alert('Hubo un error al verificar el estado del video. Por favor, inténtalo de nuevo.');
+          showError('Error de conexión', 'Hubo un error al verificar el estado del video. Por favor, inténtalo de nuevo.');
         }
       };
 
       pollStatus();
     } catch (error) {
       console.error('Error uploading video:', error);
-      alert('Hubo un error al subir el video. Por favor, inténtalo de nuevo.');
+      // Error handling is now done in the API functions
     }
   };
 
@@ -141,19 +165,39 @@ export default function Home() {
 
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold text-center text-gray-800">Conversor Video Horizontal → Vertical (V2)</h1>
-          <p className="text-center text-gray-600 mt-2">Optimiza tus videos para TikTok, Instagram Reels y YouTube Shorts</p>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold text-center text-gray-800">Conversor Video Horizontal → Vertical (V2)</h1>
+              <p className="text-center text-gray-600 mt-2">Optimiza tus videos para TikTok, Instagram Reels y YouTube Shorts</p>
+            </div>
+            <div className="shrink-0">
+              <BackendStatusIndicator />
+            </div>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
+          {/* Mensaje de advertencia cuando el backend está offline */}
+          {isBackendOnline === false && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+                <p className="text-red-700 font-medium">El backend no está disponible. No puedes subir ni procesar videos en este momento.</p>
+              </div>
+            </div>
+          )}
+
           {!videoUrl ? (
             <div className="space-y-4">
               <UploadZone
                 getRootProps={getRootProps}
                 getInputProps={getInputProps}
                 isDragActive={isDragActive}
+                disabled={isBackendOnline === false}
               />
               {durationError && (
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -169,23 +213,23 @@ export default function Home() {
                   <div className="flex-1">
                     <h2 className="text-xl font-semibold mb-4 text-gray-700">Opciones de conversión</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <label className="flex items-center space-x-2 cursor-pointer">
+                      <label className={`flex items-center space-x-2 ${isBackendOnline === false ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
                           checked={options.addSubtitles}
                           onChange={() => handleOptionChange('addSubtitles')}
-                          disabled={isProcessing}
+                          disabled={isProcessing || isBackendOnline === false}
                           className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
                         />
                         <span className="text-gray-700">Agregar subtítulos automáticos</span>
                       </label>
 
-                      <label className="flex items-center space-x-2 cursor-pointer">
+                      <label className={`flex items-center space-x-2 ${isBackendOnline === false ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}>
                         <input
                           type="checkbox"
                           checked={options.addBranding}
                           onChange={() => handleOptionChange('addBranding')}
-                          disabled={isProcessing}
+                          disabled={isProcessing || isBackendOnline === false}
                           className="h-4 w-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
                         />
                         <span className="text-gray-700">Agregar branding (logo/texto)</span>
@@ -196,10 +240,11 @@ export default function Home() {
                   <div className="flex flex-col gap-2">
                     <button
                       onClick={handleConvert}
-                      disabled={isProcessing || !!convertedUrl}
+                      disabled={isProcessing || !!convertedUrl || isBackendOnline === false}
                       className="px-8 py-3 bg-blue-600 text-white font-bold rounded-lg shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={isBackendOnline === false ? 'El backend no está disponible. No se puede procesar videos.' : undefined}
                     >
-                      {isProcessing ? 'Procesando...' : convertedUrl ? 'Completado' : 'Convertir Video'}
+                      {isProcessing ? 'Procesando...' : convertedUrl ? 'Completado' : isBackendOnline === false ? 'Backend Offline' : 'Convertir Video'}
                     </button>
                     <button
                       onClick={() => {
