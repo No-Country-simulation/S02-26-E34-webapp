@@ -16,7 +16,7 @@ const VideoPreview: React.FC<VideoPreviewProps> = ({ src, aspectRatio = 'vertica
   }, [src]);
 
   return (
-    <div className={`relative bg-black rounded-lg overflow-hidden ${aspectRatio === 'vertical' ? 'aspect-[9/16]' : 'aspect-video'}`}>
+    <div className={`relative bg-black rounded-lg overflow-hidden ${aspectRatio === 'vertical' ? 'aspect-9/16' : 'aspect-video'}`}>
       <video
         ref={videoRef}
         src={src}
