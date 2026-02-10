@@ -8,8 +8,22 @@ from typing import Dict, Any
 from config.settings import settings
 import cv2
 import numpy as np
-from ultralytics import YOLO
-import whisper
+
+# Handle optional imports for AI features
+try:
+    from ultralytics import YOLO
+    ultralytics_available = True
+except ImportError:
+    YOLO = None
+    ultralytics_available = False
+
+try:
+    import whisper
+    whisper_available = True
+except ImportError:
+    whisper = None
+    whisper_available = False
+
 from utils.storage import storage_service
 from models.database import SessionLocal
 from models.video import VideoDB
