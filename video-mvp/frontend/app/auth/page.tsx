@@ -1,34 +1,120 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Crop, Mail, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { showError, showSuccess, showInfo } from '@/lib/sweetalert';
+import FeedbackCollector from '@/components/FeedbackCollector';
+
+// Google OAuth configuration
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+const BACKEND_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+
+declare global {
+  interface Window {
+    google: any;
+  }
+}
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    const initializeGoogleSignIn = () => {
+      if (typeof window !== 'undefined' && window.google) {
+        window.google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleResponse,
+        });
+
+        window.google.accounts.id.renderButton(
+          document.getElementById('google-signin-button'),
+          { theme: 'outline', size: 'large', width: '400' }
+        );
+      }
+    };
+
+    // Load Google script if not already loaded
+    if (!window.google && GOOGLE_CLIENT_ID) {
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = initializeGoogleSignIn;
+      document.head.appendChild(script);
+    } else if (window.google && GOOGLE_CLIENT_ID) {
+      initializeGoogleSignIn();
+    }
+  }, []);
+
+  const handleGoogleResponse = async (response: any) => {
+    if (response.credential) {
+      setIsLoading(true);
+
+      try {
+        // Send Google token to backend
+        const res = await fetch(`${BACKEND_API_URL}/auth/google`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ token: response.credential }),
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          // Store user data in localStorage
+          localStorage.setItem('user', JSON.stringify(data));
+
+          // Show success message
+          showSuccess('Inicio de sesión exitoso', `¡Bienvenido, ${data.name}!`);
+
+          // Redirect to dashboard
+          router.push('/dashboard');
+        } else {
+          // Handle different error cases
+          if (res.status === 403) {
+            // Account pending verification
+            showInfo('Verificación pendiente', data.detail || 'Tu cuenta está pendiente de verificación por un administrador. Serás notificado cuando sea aprobada.');
+            router.push('/');
+          } else {
+            showError('Error de autenticación', data.detail || 'Hubo un error al iniciar sesión con Google. Por favor, inténtalo de nuevo.');
+          }
+        }
+      } catch (error) {
+        console.error('Google login error:', error);
+        showError('Error de conexión', 'No se pudo conectar con el servidor de autenticación. Por favor, inténtalo de nuevo.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Simple validation
     if (!email || !password) {
       alert('Por favor completa todos los campos requeridos');
       return;
     }
-    
+
     if (!isLogin && password !== confirmPassword) {
       alert('Las contraseñas no coinciden');
       return;
     }
-    
+
     // Simulate authentication
     console.log({ email, password, isLogin });
-    
+
     // Redirect to editor after successful auth
     router.push('/editor');
   };
@@ -50,12 +136,19 @@ export default function AuthPage() {
           {/* Logo */}
           <div className="mb-8 flex flex-col items-center">
             <div className="w-16 h-16 bg-[#3b2bee] rounded-full flex items-center justify-center shadow-lg shadow-[#3b2bee]/30 mb-6 hover:scale-105 transition-transform cursor-pointer"
-                 onClick={() => router.back()}>
-              <Crop className="text-white w-8 h-8" />
+              onClick={() => router.back()}>
+              <div className="flex flex-col items-center">
+                <svg className="text-white w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" strokeWidth="2" />
+                  <circle cx="12" cy="12" r="3" strokeWidth="2" />
+                  <path d="M12 15 L12 19" strokeWidth="2" strokeLinecap="round" />
+                  <path d="M8 21 L16 21" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              </div>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-white mb-2">VideoConverter.ai</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-white mb-2">Verv.io</h1>
             <p className="text-slate-400 text-center text-sm leading-relaxed">
-              Transforma tu contenido 16:9 en videos verticales virales en segundos.
+              Plataforma SaaS que convierte automáticamente videos horizontales en verticales optimizados para TikTok, Instagram Reels, YouTube Shorts y otras plataformas. Máximo {process.env.NEXT_PUBLIC_MAX_FILE_SIZE_MB || '50'}MB y {process.env.NEXT_PUBLIC_MAX_VIDEO_DURATION_MINUTES || '3'} minutos de duración.
             </p>
           </div>
 
@@ -77,12 +170,7 @@ export default function AuthPage() {
 
           {/* Actions */}
           <div className="w-full space-y-4">
-            <button
-              className="w-full flex items-center justify-center gap-3 bg-white hover:bg-slate-100 text-slate-900 font-semibold py-4 rounded-full transition-all active:scale-[0.98] shadow-xl"
-            >
-              <img className="w-6 h-6" src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" alt="Google" />
-              Continuar con Google
-            </button>
+            <div id="google-signin-button" className="w-full flex justify-center"></div>
 
             <div className="relative flex items-center py-4">
               <div className="flex-grow border-t border-white/10"></div>
@@ -99,7 +187,7 @@ export default function AuthPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
-              
+
               <input
                 className="w-full bg-white/5 border border-white/10 focus:border-[#3b2bee]/50 focus:ring-2 focus:ring-[#3b2bee]/20 rounded-full py-4 px-6 text-sm transition-all outline-none placeholder:text-slate-500 text-white"
                 placeholder="Contraseña"
@@ -108,7 +196,7 @@ export default function AuthPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
               />
-              
+
               {!isLogin && (
                 <input
                   className="w-full bg-white/5 border border-white/10 focus:border-[#3b2bee]/50 focus:ring-2 focus:ring-[#3b2bee]/20 rounded-full py-4 px-6 text-sm transition-all outline-none placeholder:text-slate-500 text-white"
@@ -119,7 +207,7 @@ export default function AuthPage() {
                   required
                 />
               )}
-              
+
               <button
                 type="submit"
                 className="w-full py-4 rounded-full bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white font-bold transition-all active:scale-[0.98] shadow-lg shadow-[#3b2bee]/30"
@@ -138,6 +226,13 @@ export default function AuthPage() {
             </div>
           )}
 
+          {/* Loading overlay */}
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/50 rounded-3xl flex items-center justify-center z-20">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#3b2bee]"></div>
+            </div>
+          )}
+
           {/* Social Proof */}
           <div className="mt-10 flex items-center gap-4 p-4 rounded-xl bg-[#3b2bee]/5 border border-[#3b2bee]/10">
             <div className="flex -space-x-2">
@@ -150,11 +245,7 @@ export default function AuthPage() {
             </p>
           </div>
 
-          <footer className="mt-10 flex flex-wrap justify-center gap-x-6 gap-y-2 opacity-60">
-            <a className="text-[10px] text-slate-500 hover:text-[#3b2bee] transition-colors uppercase tracking-widest font-semibold" href="#">Privacidad</a>
-            <a className="text-[10px] text-slate-500 hover:text-[#3b2bee] transition-colors uppercase tracking-widest font-semibold" href="#">Términos</a>
-            <a className="text-[10px] text-slate-500 hover:text-[#3b2bee] transition-colors uppercase tracking-widest font-semibold" href="#">Ayuda</a>
-          </footer>
+          <FeedbackCollector />
         </div>
       </main>
     </div>

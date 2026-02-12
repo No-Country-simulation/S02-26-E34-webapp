@@ -14,28 +14,13 @@ class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type, handler):
         from pydantic_core import core_schema
-        return core_schema.json_or_python_schema(
-            json_schema=core_schema.chain_schema([
-                core_schema.str_schema(),
-                core_schema.no_info_plain_validator_function(cls.validate),
-            ]),
-            python_schema=core_schema.union_schema([
-                core_schema.is_instance_schema(ObjectId),
-                core_schema.chain_schema([
-                    core_schema.str_schema(),
-                    core_schema.no_info_plain_validator_function(cls.validate),
-                ]),
-            ]),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda x: str(x),
-                when_used='json', # Only serialize to string for JSON
-            ),
+        return core_schema.no_info_after_validator_function(
+            cls.validate,
+            core_schema.str_schema(),
         )
 
     @classmethod
     def validate(cls, v):
-        if isinstance(v, ObjectId):
-            return v
         if not ObjectId.is_valid(v):
             raise ValueError("Invalid objectid")
         return ObjectId(v)
@@ -57,10 +42,6 @@ class VideoStatus(str, Enum):
 # Modelo de video actualizado con todos los campos del modelo propuesto
 class VideoMetadata(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    progress: int = 0  # Progreso de procesamiento (0-100)
-    status_message: Optional[str] = None # Mensaje detallado del estado
-
-
 
     # Metadatos básicos
     filename: str = Field(..., max_length=255)
@@ -142,12 +123,6 @@ class VideoMetadata(BaseModel):
     parent_video_id: Optional[PyObjectId]
     is_master_copy: bool = True
 
-    # Campos específicos para procesamiento
-    title: str = ""
-    original_file_path: str = ""
-    add_subtitles: bool = False
-    add_branding: bool = False
-
     # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
@@ -227,5 +202,4 @@ class VideoStatusResponse(BaseModel):
     video_id: str
     status: str
     message: str
-    progress: int = 0
     download_url: Optional[str] = None

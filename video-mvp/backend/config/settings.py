@@ -35,7 +35,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
     # Video processing
-    MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100MB
+    MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB
+    MAX_VIDEO_DURATION_SECONDS: int = 180  # 3 minutos
     SUPPORTED_FORMATS: list = ["mp4", "mov", "avi", "mkv"]
 
     model_config = {"env_file": ".env", "extra": "ignore"}

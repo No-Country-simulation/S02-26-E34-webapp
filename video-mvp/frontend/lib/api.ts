@@ -13,8 +13,9 @@ interface UploadResponse {
 
 interface StatusResponse {
   video_id: string;
-  status: 'uploaded' | 'processing' | 'completed' | 'failed';
+  status: 'uploaded' | 'processing' | 'processed' | 'failed' | 'deleted';
   message: string;
+  progress: number;
   download_url?: string;
 }
 
@@ -28,10 +29,16 @@ export const uploadVideo = async (
   formData.append('add_branding', options.addBranding.toString());
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout para subida
+
     const response = await fetch(`${API_BASE_URL}/upload/`, {
       method: 'POST',
       body: formData,
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.text();
@@ -40,11 +47,13 @@ export const uploadVideo = async (
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload API error:', error);
     // Show error to user if it's a network error
     if (error instanceof TypeError && error.message.includes('fetch')) {
       showError('Error de conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
+    } else if (error.name === 'AbortError') {
+      showError('Tiempo de espera agotado', 'La subida del video tardó demasiado en responder. Verifica que el backend esté corriendo.');
     } else {
       showError('Error de subida', 'Hubo un error al subir el video. Por favor, inténtalo de nuevo.');
     }
@@ -54,7 +63,14 @@ export const uploadVideo = async (
 
 export const checkStatus = async (videoId: string): Promise<StatusResponse> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/status/${videoId}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos de timeout
+
+    const response = await fetch(`${API_BASE_URL}/status/${videoId}`, {
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.text();
@@ -63,11 +79,13 @@ export const checkStatus = async (videoId: string): Promise<StatusResponse> => {
     }
 
     return await response.json();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Status check API error:', error);
     // Show error to user if it's a network error
     if (error instanceof TypeError && error.message.includes('fetch')) {
       showError('Error de conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
+    } else if (error.name === 'AbortError') {
+      showError('Tiempo de espera agotado', 'La solicitud tardó demasiado en responder. Verifica que el backend esté corriendo.');
     } else {
       showError('Error de red', 'Ocurrió un error al intentar comunicarse con el servidor.');
     }
@@ -77,7 +95,14 @@ export const checkStatus = async (videoId: string): Promise<StatusResponse> => {
 
 export const downloadVideo = async (videoId: string): Promise<Blob> => {
   try {
-    const response = await fetch(`${API_BASE_URL}/download/${videoId}`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout para descarga
+
+    const response = await fetch(`${API_BASE_URL}/download/${videoId}`, {
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const errorData = await response.text();
@@ -86,11 +111,13 @@ export const downloadVideo = async (videoId: string): Promise<Blob> => {
     }
 
     return await response.blob();
-  } catch (error) {
+  } catch (error: any) {
     console.error('Download API error:', error);
     // Show error to user if it's a network error
     if (error instanceof TypeError && error.message.includes('fetch')) {
       showError('Error de conexión', 'No se pudo conectar con el servidor. Verifica que el backend esté corriendo.');
+    } else if (error.name === 'AbortError') {
+      showError('Tiempo de espera agotado', 'La descarga del video tardó demasiado en responder. Verifica que el backend esté corriendo.');
     } else {
       showError('Error de descarga', 'Ocurrió un error al intentar descargar el video.');
     }

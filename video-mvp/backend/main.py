@@ -2,6 +2,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from api.endpoints import upload, download
+from api.endpoints.auth import router as auth_router
 from models.database import connect_to_mongo, close_mongo_connection
 from config.settings import settings
 from config.ai_settings import ai_settings
@@ -22,9 +23,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# Middleware para manejar CORS
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # En producción, restringir a dominios específicos
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Incluir routers
 app.include_router(upload.router, prefix=settings.API_V1_STR, tags=["upload"])
 app.include_router(download.router, prefix=settings.API_V1_STR, tags=["download"])
+app.include_router(auth_router, prefix=settings.API_V1_STR, tags=["auth"])
 
 @app.get("/")
 def read_root():
@@ -81,17 +94,6 @@ async def health_check():
 @app.get("/api/v1/health")
 async def health_check_api_v1():
     return await health_check()
-
-# Middleware para manejar CORS si es necesario
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # En producción, restringir a dominios específicos
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 if __name__ == "__main__":
     import uvicorn
