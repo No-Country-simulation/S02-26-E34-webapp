@@ -175,7 +175,8 @@ export default function ProfilePage() {
                     </div>
                 </div>
             </div>
-            <FeedbackCollector />
         </div>
+
+        <FeedbackCollector />
     );
 }

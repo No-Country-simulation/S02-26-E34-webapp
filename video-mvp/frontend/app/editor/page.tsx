@@ -464,6 +464,7 @@ export default function ImprovedEditorPage() {
       </main>
 
       <FeedbackCollector />
+
     </div>
   );
 }

@@ -167,7 +167,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Botón de feedback */}
       <FeedbackCollector />
 
       {isDemoOpen && (

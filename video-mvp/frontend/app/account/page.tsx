@@ -97,8 +97,9 @@ export default function AccountPage() {
                     </div>
                 </div>
             </div>
-            <FeedbackCollector />
         </div>
+
+        <FeedbackCollector />
     );
 }
 

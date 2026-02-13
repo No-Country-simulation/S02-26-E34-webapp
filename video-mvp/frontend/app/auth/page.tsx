@@ -245,9 +245,10 @@ export default function AuthPage() {
             </p>
           </div>
 
-          <FeedbackCollector />
         </div>
       </main>
+
+      <FeedbackCollector />
     </div>
   );
 }

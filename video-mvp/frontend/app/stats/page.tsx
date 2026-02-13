@@ -286,8 +286,9 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </main>
-            <FeedbackCollector />
         </div>
+
+        <FeedbackCollector />
     );
 }
 
