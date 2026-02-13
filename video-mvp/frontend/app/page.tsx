@@ -4,11 +4,14 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import OnboardingTutorial from '@/components/OnboardingTutorial';
 import FeedbackCollector from '@/components/FeedbackCollector';
-import { ArrowRight, CloudUpload, Frame, FileDown, Bolt } from 'lucide-react';
+import { ArrowRight, Bolt } from 'lucide-react';
+import StepCard from '@/components/StepCard';
+import stepsData from '@/data/steps.json';
 
 export default function Home() {
   const router = useRouter();
   const [showTutorial, setShowTutorial] = useState(false);
+  const [isDemoOpen, setIsDemoOpen] = useState(false);
 
   // Mostrar tutorial solo en la primera visita
   useEffect(() => {
@@ -46,7 +49,10 @@ export default function Home() {
             >
               Comenzar Gratis <ArrowRight className="w-5 h-5" />
             </button>
-            <button className="w-full sm:w-auto bg-[#121022] border border-white/10 hover:border-[#3b2bee]/50 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all">
+            <button
+              onClick={() => setIsDemoOpen(true)}
+              className="w-full sm:w-auto bg-[#121022] border border-white/10 hover:border-[#3b2bee]/50 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all"
+            >
               Ver Demo
             </button>
           </div>
@@ -119,24 +125,15 @@ export default function Home() {
             <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto">Pasa de formato cinematográfico panorámico a formato vertical viral en tres sencillos pasos.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
-            <StepCard
-              num="01"
-              icon={<CloudUpload className="text-[#3b2bee]" />}
-              title="Sube Video"
-              desc="Arrastra tu obra maestra 16:9 a nuestra nube segura. Soportamos resolución 4K y altas tasas de bits."
-            />
-            <StepCard
-              num="02"
-              icon={<Frame className="text-[#3b2bee]" />}
-              title="Ajusta Marco"
-              desc="Arrastra y posiciona el selector vertical para encuadrar la acción perfectamente. Mira el resultado en tiempo real."
-            />
-            <StepCard
-              num="03"
-              icon={<FileDown className="text-[#3b2bee]" />}
-              title="Exporta Instantáneamente"
-              desc="Exporta en formato vertical 9:16 de alta calidad. Listo para ser compartido directamente en plataformas sociales."
-            />
+            {stepsData.map((step) => (
+              <StepCard
+                key={step.id}
+                num={step.num}
+                icon={step.icon as "upload" | "frame" | "export"}
+                title={step.title}
+                desc={step.desc}
+              />
+            ))}
           </div>
         </div>
       </section>
@@ -145,7 +142,21 @@ export default function Home() {
       <section className="py-20 px-6">
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-12 md:py-16 rounded-3xl bg-[#3b2bee] shadow-[0_0_50px_rgba(59,43,238,0.5)] text-white overflow-hidden relative">
           <div className="absolute top-0 right-0 p-10 md:p-20 opacity-10 pointer-events-none">
-            <Bolt className="w-37.5 md:w-50 h-37.5 md:h-50" />
+            <svg
+              className="w-37.5 md:w-50 h-37.5 md:h-50"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <circle cx="12" cy="12" r="3" />
+              <path d="M12 15 L12 19" />
+              <path d="M8 21 L16 21" />
+            </svg>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-8 relative z-10 text-center">
             <StatItem val="500k+" label="Procesados" />
@@ -158,22 +169,31 @@ export default function Home() {
 
       {/* Botón de feedback */}
       <FeedbackCollector />
+
+      {isDemoOpen && (
+        <div className="fixed inset-0 bg-[#0a0a0f]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative w-full max-w-4xl bg-[#121022] border border-white/10 rounded-2xl p-4 md:p-6 shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+            <button
+              onClick={() => setIsDemoOpen(false)}
+              className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
+              aria-label="Cerrar demo"
+            >
+              <span className="text-2xl leading-none">×</span>
+            </button>
+            <div className="aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+              <video className="w-full h-full" controls autoPlay playsInline>
+                <source src="/video-demo.mp4" type="video/mp4" />
+                Tu navegador no soporta el video.
+              </video>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // Helper components for the landing page
-const StepCard = ({ num, icon, title, desc }: { num: string, icon: React.ReactNode, title: string, desc: string }) => (
-  <div className="relative p-8 rounded-2xl bg-[#121022] border border-white/5 hover:border-[#3b2bee]/30 transition-all group overflow-hidden">
-    <div className="w-16 h-16 rounded-2xl bg-[#3b2bee]/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-      {icon}
-    </div>
-    <div className="absolute top-8 right-8 text-6xl font-black text-[#3b2bee]/5">{num}</div>
-    <h3 className="text-2xl font-bold mb-3 text-white">{title}</h3>
-    <p className="text-slate-400 leading-relaxed">{desc}</p>
-  </div>
-);
-
 const StatItem = ({ val, label }: { val: string, label: string }) => (
   <div>
     <div className="text-4xl font-bold mb-1">{val}</div>

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "step-01",
+    "num": "01",
+    "icon": "upload",
+    "title": "Sube Video",
+    "desc": "Arrastra tu obra maestra 16:9 a nuestra nube segura. Soportamos resolucion 4K y altas tasas de bits."
+  },
+  {
+    "id": "step-02",
+    "num": "02",
+    "icon": "frame",
+    "title": "Ajusta Marco",
+    "desc": "Arrastra y posiciona el selector vertical para encuadrar la accion perfectamente. Mira el resultado en tiempo real."
+  },
+  {
+    "id": "step-03",
+    "num": "03",
+    "icon": "export",
+    "title": "Exporta Instantaneamente",
+    "desc": "Exporta en formato vertical 9:16 de alta calidad. Listo para ser compartido directamente en plataformas sociales."
+  }
+]

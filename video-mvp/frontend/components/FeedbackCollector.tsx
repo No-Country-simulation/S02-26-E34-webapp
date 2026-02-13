@@ -1,9 +1,10 @@
 // frontend/components/FeedbackCollector.tsx
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 const FeedbackCollector = () => {
+  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [feedback, setFeedback] = useState({
     rating: 0,
@@ -11,6 +12,10 @@ const FeedbackCollector = () => {
     email: ''
   });
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const handleRating = (rating: number) => {
     setFeedback({...feedback, rating});
@@ -36,12 +41,16 @@ const FeedbackCollector = () => {
     }, 2000);
   };
 
+  if (!isMounted) {
+    return null;
+  }
+
   return (
     <>
       {/* Botón flotante de feedback */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 z-40"
+        className="fixed bottom-6 right-6 bg-[#3b2bee] text-white p-4 rounded-full shadow-[0_0_20px_rgba(59,43,238,0.5)] hover:bg-[#3b2bee]/90 border border-[#3b2bee]/40 z-40 transition-all"
         aria-label="Enviar feedback"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -51,36 +60,36 @@ const FeedbackCollector = () => {
 
       {/* Modal de feedback */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 relative">
+        <div className="fixed inset-0 bg-[#0a0a0f]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#121022] border border-white/10 rounded-2xl max-w-md w-full p-6 relative shadow-[0_0_40px_rgba(0,0,0,0.4)]">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+              className="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
             
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Tu opinión nos importa</h2>
+            <h2 className="text-xl font-bold text-white mb-4">Tu opinion nos importa</h2>
             
             {submitted ? (
               <div className="text-center py-8">
-                <div className="text-green-500 text-5xl mb-4">✓</div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">¡Gracias por tu feedback!</h3>
-                <p className="text-gray-600">Tu opinión nos ayuda a mejorar continuamente.</p>
+                <div className="text-emerald-400 text-5xl mb-4">✓</div>
+                <h3 className="text-lg font-semibold text-white mb-2">Gracias por tu feedback</h3>
+                <p className="text-slate-400">Tu opinion nos ayuda a mejorar continuamente.</p>
               </div>
             ) : (
               <form onSubmit={handleSubmit}>
                 <div className="mb-4">
-                  <label className="block text-gray-700 font-medium mb-2">¿Qué te pareció la experiencia?</label>
+                  <label className="block text-slate-300 font-medium mb-2">Que te parecio la experiencia?</label>
                   <div className="flex space-x-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => handleRating(star)}
-                        className={`text-2xl ${star <= feedback.rating ? 'text-yellow-400' : 'text-gray-300'}`}
+                        className={`text-2xl transition-colors ${star <= feedback.rating ? 'text-amber-400' : 'text-slate-600 hover:text-slate-400'}`}
                       >
                         ★
                       </button>
@@ -89,7 +98,7 @@ const FeedbackCollector = () => {
                 </div>
                 
                 <div className="mb-4">
-                  <label htmlFor="comment" className="block text-gray-700 font-medium mb-2">
+                  <label htmlFor="comment" className="block text-slate-300 font-medium mb-2">
                     Comentarios (opcional)
                   </label>
                   <textarea
@@ -98,14 +107,14 @@ const FeedbackCollector = () => {
                     value={feedback.comment}
                     onChange={handleChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="¿Qué podemos mejorar?"
+                    className="w-full px-3 py-2 bg-[#0a0a0f] text-white border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3b2bee]/50 focus:border-[#3b2bee]/50"
+                    placeholder="Que podemos mejorar?"
                   ></textarea>
                 </div>
                 
                 <div className="mb-6">
-                  <label htmlFor="email" className="block text-gray-700 font-medium mb-2">
-                    Correo electrónico (opcional)
+                  <label htmlFor="email" className="block text-slate-300 font-medium mb-2">
+                    Correo electronico (opcional)
                   </label>
                   <input
                     type="email"
@@ -113,7 +122,7 @@ const FeedbackCollector = () => {
                     name="email"
                     value={feedback.email}
                     onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-[#0a0a0f] text-white border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3b2bee]/50 focus:border-[#3b2bee]/50"
                     placeholder="tu@email.com"
                   />
                 </div>
@@ -122,17 +131,17 @@ const FeedbackCollector = () => {
                   <button
                     type="button"
                     onClick={() => setIsOpen(false)}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                    className="flex-1 px-4 py-2 border border-white/10 rounded-lg text-slate-300 hover:text-white hover:border-[#3b2bee]/40 hover:bg-[#3b2bee]/10 transition-colors"
                   >
                     Cancelar
                   </button>
                   <button
                     type="submit"
                     disabled={feedback.rating === 0}
-                    className={`flex-1 px-4 py-2 rounded-lg text-white ${
-                      feedback.rating === 0 
-                        ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-blue-600 hover:bg-blue-700'
+                    className={`flex-1 px-4 py-2 rounded-lg text-white font-semibold transition-colors ${
+                      feedback.rating === 0
+                        ? 'bg-white/10 text-slate-500 cursor-not-allowed'
+                        : 'bg-[#3b2bee] hover:bg-[#3b2bee]/90'
                     }`}
                   >
                     Enviar
