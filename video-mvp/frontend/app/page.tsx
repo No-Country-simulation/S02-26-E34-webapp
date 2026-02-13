@@ -36,24 +36,24 @@ export default function Home() {
             <span className="text-[10px] md:text-xs font-semibold uppercase tracking-widest text-[#3b2bee]">Nuevo: Ajuste de marco en tiempo real</span>
           </div>
           <h1 className="text-4xl md:text-7xl font-bold mb-6 leading-tight tracking-tight text-white px-2">
-            Transforma Tu Contenido.<br />
-            <span className="text-transparent bg-clip-text bg-linear-to-r from-purple-500 to-blue-400">Verv.io</span> en Acción.
+            Tu historia merece el foco.<br />
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-purple-500 to-blue-400">En vertical, sin perder lo esencial.</span>
           </h1>
           <p className="text-base md:text-xl text-slate-400 mb-8 md:mb-10 max-w-2xl mx-auto leading-relaxed px-4">
-            La forma más rápida de reutilizar tus videos para TikTok, Reels y Shorts con nuestra herramienta inteligente de ajuste de marco en tiempo real.
+            Verv.io cuida cada detalle para que tu mensaje se vea claro, fuerte y emocionante. Menos edicion, mas impacto.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16 md:mb-20 px-6">
             <button
               onClick={() => router.push('/editor')}
               className="w-full sm:w-auto bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white px-8 py-4 rounded-full text-lg font-bold transition-all shadow-[0_0_30px_rgba(59,43,238,0.5)] flex items-center justify-center gap-2 active:scale-95"
             >
-              Comenzar Gratis <ArrowRight className="w-5 h-5" />
+              Probar gratis y sentir el cambio <ArrowRight className="w-5 h-5" />
             </button>
             <button
               onClick={() => setIsDemoOpen(true)}
               className="w-full sm:w-auto bg-[#121022] border border-white/10 hover:border-[#3b2bee]/50 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all"
             >
-              Ver Demo
+              Ver la diferencia
             </button>
           </div>
 
@@ -80,12 +80,46 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Before / After Section */}
+      <section id="before-after" className="py-16 md:py-20 px-6">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10 md:mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">Lo que importa, siempre al centro</h2>
+            <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto">
+              Tu energia y tu mensaje no se pierden. Verv.io los mantiene vivos en cada short.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+            <div className="bg-[#121022] border border-white/10 rounded-2xl p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Antes</span>
+                <span className="text-xs font-semibold text-rose-400">Se pierde el momento</span>
+              </div>
+              <div className="aspect-video rounded-xl bg-linear-to-br from-white/5 via-white/5 to-white/10 border border-white/10 flex items-center justify-center text-slate-500 text-xs">
+                Recorte manual 9:16
+              </div>
+              <p className="mt-4 text-sm text-slate-400">La emocion se corta y el foco se va.</p>
+            </div>
+            <div className="bg-[#121022] border border-white/10 rounded-2xl p-5 md:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Despues</span>
+                <span className="text-xs font-semibold text-emerald-400">La historia brilla</span>
+              </div>
+              <div className="aspect-video rounded-xl bg-linear-to-br from-[#3b2bee]/20 via-[#3b2bee]/10 to-white/5 border border-[#3b2bee]/30 flex items-center justify-center text-[#b9b3ff] text-xs">
+                Reencuadre IA 9:16
+              </div>
+              <p className="mt-4 text-sm text-slate-400">El protagonismo queda donde debe estar.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Converter Section */}
       <section id="converter-section" className="py-12 md:py-16 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Convierte tu video ahora</h2>
-            <p className="text-sm md:text-base text-slate-400">Sube tu video horizontal y obtén una versión vertical optimizada</p>
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Convierte sin perder el alma</h2>
+            <p className="text-sm md:text-base text-slate-400">De 16:9 a 9:16 con el mismo impacto que sentiste al grabarlo.</p>
           </div>
 
           <div className="bg-[#121022] p-6 md:p-8 rounded-2xl border border-white/10 shadow-lg">
@@ -96,7 +130,7 @@ export default function Home() {
               </div>
               <h3 className="text-xl md:text-2xl font-bold mb-4 text-white">Accede al Editor de Video</h3>
               <p className="text-sm md:text-base text-slate-400 mb-8 max-w-lg mx-auto leading-relaxed">
-                Para convertir tus videos de 16:9 a 9:16, por favor inicia sesión en tu cuenta y accede al editor de video.
+                Convierte un video largo en varios shorts que se sienten vivos, listos para compartir.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
@@ -121,8 +155,8 @@ export default function Home() {
       <section className="py-20 md:py-24 px-6 bg-[#121022]/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">Cómo Funciona</h2>
-            <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto">Pasa de formato cinematográfico panorámico a formato vertical viral en tres sencillos pasos.</p>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">Como funciona</h2>
+            <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto">Tres pasos simples para que tu contenido se sienta grande en vertical.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
             {stepsData.map((step) => (

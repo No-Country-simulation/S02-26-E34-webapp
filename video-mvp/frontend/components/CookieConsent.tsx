@@ -2,25 +2,63 @@
 
 import React, { useState, useEffect } from 'react';
 import { Info, X, Check } from 'lucide-react';
+import { fetchCookiePreferences, saveCookiePreferences } from '@/lib/cookiePreferences';
 
 const CookieConsent = () => {
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
-        const consent = localStorage.getItem('cookie-consent');
-        if (!consent) {
-            const timer = setTimeout(() => setIsVisible(true), 1500);
-            return () => clearTimeout(timer);
-        }
+        const syncFromServer = async () => {
+            const consent = localStorage.getItem('cookie-consent');
+            const prefs = localStorage.getItem('cookie-preferences');
+
+            if (!consent) {
+                const serverPrefs = await fetchCookiePreferences();
+                if (serverPrefs) {
+                    localStorage.setItem('cookie-preferences', JSON.stringify(serverPrefs));
+                    localStorage.setItem('cookie-consent', 'custom');
+                    setIsVisible(false);
+                    return;
+                }
+
+                const timer = setTimeout(() => setIsVisible(true), 1500);
+                return () => clearTimeout(timer);
+            }
+
+            if (!prefs) {
+                const fallbackPrefs = consent === 'true'
+                    ? { necessary: true, preferences: true, analytics: true, marketing: true }
+                    : { necessary: true, preferences: false, analytics: false, marketing: false };
+                localStorage.setItem('cookie-preferences', JSON.stringify(fallbackPrefs));
+            }
+        };
+
+        void syncFromServer();
     }, []);
 
     const handleAccept = () => {
+        const prefs = {
+            necessary: true,
+            preferences: true,
+            analytics: true,
+            marketing: true
+        };
+        localStorage.setItem('cookie-preferences', JSON.stringify(prefs));
         localStorage.setItem('cookie-consent', 'true');
+        void saveCookiePreferences(prefs);
         setIsVisible(false);
     };
 
     const handleDecline = () => {
+        const prefs = {
+            necessary: true,
+            preferences: false,
+            analytics: false,
+            marketing: false
+        };
+        localStorage.setItem('cookie-preferences', JSON.stringify(prefs));
         localStorage.setItem('cookie-consent', 'false');
+        void saveCookiePreferences(prefs);
         setIsVisible(false);
     };
 

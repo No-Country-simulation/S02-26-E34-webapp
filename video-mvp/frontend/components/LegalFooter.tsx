@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, Shield, FileText, Mail, Info } from 'lucide-react';
+import { fetchCookiePreferences, saveCookiePreferences } from '@/lib/cookiePreferences';
 
 interface ModalProps {
     isOpen: boolean;
@@ -9,9 +10,10 @@ interface ModalProps {
     title: string;
     icon: React.ReactNode;
     children: React.ReactNode;
+    footer?: React.ReactNode;
 }
 
-const Modal = ({ isOpen, onClose, title, icon, children }: ModalProps) => {
+const Modal = ({ isOpen, onClose, title, icon, children, footer }: ModalProps) => {
     if (!isOpen) return null;
 
     return (
@@ -38,12 +40,14 @@ const Modal = ({ isOpen, onClose, title, icon, children }: ModalProps) => {
                     {children}
                 </div>
                 <div className="p-6 border-t border-white/5 bg-white/2 flex justify-end">
-                    <button
-                        onClick={onClose}
-                        className="px-6 py-2 bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white font-bold rounded-full transition-all"
-                    >
-                        Entendido
-                    </button>
+                    {footer || (
+                        <button
+                            onClick={onClose}
+                            className="px-6 py-2 bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white font-bold rounded-full transition-all"
+                        >
+                            Entendido
+                        </button>
+                    )}
                 </div>
             </div>
         </div>
@@ -57,6 +61,73 @@ export const LegalModals = ({
     activeModal: 'privacy' | 'terms' | 'contact' | 'cookies' | null;
     onClose: () => void;
 }) => {
+    const defaultPrefs = {
+        necessary: true,
+        preferences: false,
+        analytics: false,
+        marketing: false
+    };
+    const [cookiePrefs, setCookiePrefs] = useState(defaultPrefs);
+
+    useEffect(() => {
+        if (activeModal !== 'cookies') return;
+
+        const loadPrefs = async () => {
+            const saved = localStorage.getItem('cookie-preferences');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved) as typeof defaultPrefs;
+                    setCookiePrefs({ ...defaultPrefs, ...parsed, necessary: true });
+                    return;
+                } catch {
+                    setCookiePrefs(defaultPrefs);
+                }
+            }
+
+            const serverPrefs = await fetchCookiePreferences();
+            if (serverPrefs) {
+                localStorage.setItem('cookie-preferences', JSON.stringify(serverPrefs));
+                localStorage.setItem('cookie-consent', 'custom');
+                setCookiePrefs({ ...defaultPrefs, ...serverPrefs, necessary: true });
+                return;
+            }
+
+            setCookiePrefs(defaultPrefs);
+        };
+
+        void loadPrefs();
+    }, [activeModal]);
+
+    const togglePref = (key: keyof typeof defaultPrefs) => {
+        if (key === 'necessary') return;
+        setCookiePrefs((prev) => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    const savePrefs = () => {
+        localStorage.setItem('cookie-preferences', JSON.stringify(cookiePrefs));
+        localStorage.setItem('cookie-consent', 'custom');
+        void saveCookiePreferences(cookiePrefs);
+        onClose();
+    };
+
+    const acceptAll = () => {
+        const accepted = { ...defaultPrefs, preferences: true, analytics: true, marketing: true };
+        setCookiePrefs(accepted);
+        localStorage.setItem('cookie-preferences', JSON.stringify(accepted));
+        localStorage.setItem('cookie-consent', 'true');
+        void saveCookiePreferences(accepted);
+        onClose();
+    };
+
+    const rejectNonEssential = () => {
+        const minimal = { ...defaultPrefs, preferences: false, analytics: false, marketing: false };
+        setCookiePrefs(minimal);
+        localStorage.setItem('cookie-preferences', JSON.stringify(minimal));
+        localStorage.setItem('cookie-consent', 'false');
+        void saveCookiePreferences(minimal);
+        onClose();
+    };
+
     return (
         <>
             {/* Privacy Policy Modal */}
@@ -99,12 +170,80 @@ export const LegalModals = ({
                 onClose={onClose}
                 title="Política de Cookies"
                 icon={<Info className="w-5 h-5" />}
+                footer={
+                    <div className="flex flex-col sm:flex-row gap-3 w-full justify-end">
+                        <button
+                            onClick={rejectNonEssential}
+                            className="px-4 py-2 border border-white/10 hover:bg-white/5 text-slate-300 hover:text-white text-sm font-semibold rounded-full transition-colors"
+                        >
+                            Rechazar no esenciales
+                        </button>
+                        <button
+                            onClick={acceptAll}
+                            className="px-4 py-2 bg-white/10 hover:bg-white/15 text-white text-sm font-semibold rounded-full transition-colors"
+                        >
+                            Aceptar todas
+                        </button>
+                        <button
+                            onClick={savePrefs}
+                            className="px-6 py-2 bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white text-sm font-bold rounded-full transition-all"
+                        >
+                            Guardar preferencias
+                        </button>
+                    </div>
+                }
             >
-                <p>Utilizamos cookies propias y de terceros para mejorar tu experiencia.</p>
-                <h3 className="text-white font-bold text-lg mb-2">Cookies Necesarias</h3>
-                <p>Esenciales para el funcionamiento del sitio, como el mantenimiento de sesiones y preferencias de seguridad.</p>
-                <h3 className="text-white font-bold text-lg mb-2">Cookies de Rendimiento</h3>
-                <p>Nos ayudan a entender cómo los usuarios interactúan con el sitio, analizando errores y tiempos de carga.</p>
+                <p>Elige que tipo de cookies quieres permitir. Las necesarias siempre estan activas.</p>
+                <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                        <div>
+                            <p className="text-white font-semibold">Necesarias</p>
+                            <p className="text-sm text-slate-400">Mantienen el sitio funcionando y seguro.</p>
+                        </div>
+                        <button
+                            className="px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                            aria-label="Cookies necesarias activas"
+                        >
+                            Activas
+                        </button>
+                    </div>
+                    <button
+                        onClick={() => togglePref('preferences')}
+                        className="w-full flex items-center justify-between gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors"
+                    >
+                        <div className="text-left">
+                            <p className="text-white font-semibold">Preferencias</p>
+                            <p className="text-sm text-slate-400">Recuerdan ajustes y preferencias visuales.</p>
+                        </div>
+                        <span className={`px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full ${cookiePrefs.preferences ? 'bg-[#3b2bee]/20 text-[#b9b3ff] border border-[#3b2bee]/40' : 'bg-white/5 text-slate-500 border border-white/10'}`}>
+                            {cookiePrefs.preferences ? 'Activadas' : 'Desactivadas'}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => togglePref('analytics')}
+                        className="w-full flex items-center justify-between gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors"
+                    >
+                        <div className="text-left">
+                            <p className="text-white font-semibold">Analiticas</p>
+                            <p className="text-sm text-slate-400">Nos ayudan a mejorar el producto.</p>
+                        </div>
+                        <span className={`px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full ${cookiePrefs.analytics ? 'bg-[#3b2bee]/20 text-[#b9b3ff] border border-[#3b2bee]/40' : 'bg-white/5 text-slate-500 border border-white/10'}`}>
+                            {cookiePrefs.analytics ? 'Activadas' : 'Desactivadas'}
+                        </span>
+                    </button>
+                    <button
+                        onClick={() => togglePref('marketing')}
+                        className="w-full flex items-center justify-between gap-4 p-4 bg-white/5 rounded-xl border border-white/10 hover:border-white/20 transition-colors"
+                    >
+                        <div className="text-left">
+                            <p className="text-white font-semibold">Marketing</p>
+                            <p className="text-sm text-slate-400">Personalizan anuncios y contenido.</p>
+                        </div>
+                        <span className={`px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full ${cookiePrefs.marketing ? 'bg-[#3b2bee]/20 text-[#b9b3ff] border border-[#3b2bee]/40' : 'bg-white/5 text-slate-500 border border-white/10'}`}>
+                            {cookiePrefs.marketing ? 'Activadas' : 'Desactivadas'}
+                        </span>
+                    </button>
+                </div>
             </Modal>
 
             {/* Contact Modal */}

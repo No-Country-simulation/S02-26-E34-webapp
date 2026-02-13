@@ -33,6 +33,14 @@ class UserVerificationStatus(str, Enum):
     REJECTED = "rejected"
 
 
+class CookiePreferences(BaseModel):
+    necessary: bool = True
+    preferences: bool = False
+    analytics: bool = False
+    marketing: bool = False
+    updated_at: Optional[datetime] = None
+
+
 # Modelo para el documento de usuario en MongoDB
 class UserDocument(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
@@ -46,6 +54,7 @@ class UserDocument(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     verified_at: Optional[datetime] = None
     rejected_at: Optional[datetime] = None
+    cookie_preferences: Optional[CookiePreferences] = None
 
     class Config:
         populate_by_name = True
@@ -89,3 +98,11 @@ class UserLoginResponse(BaseModel):
     verification_status: UserVerificationStatus
     access_token: str
     token_type: str = "bearer"
+
+
+class CookiePreferencesResponse(BaseModel):
+    necessary: bool
+    preferences: bool
+    analytics: bool
+    marketing: bool
+    updated_at: Optional[datetime] = None

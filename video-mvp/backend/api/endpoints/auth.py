@@ -1,7 +1,14 @@
 from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
-from models.user import UserLoginResponse, UserVerificationStatus, UserDocument
+from datetime import datetime
+from models.user import (
+    UserLoginResponse,
+    UserVerificationStatus,
+    UserDocument,
+    CookiePreferences,
+    CookiePreferencesResponse
+)
 from services.google_auth import GoogleAuthService
 from models.database import get_database
 from bson import ObjectId
@@ -12,6 +19,46 @@ from config.settings import settings
 
 router = APIRouter()
 security = HTTPBearer()
+
+
+async def get_verified_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserDocument:
+    try:
+        payload = jwt.decode(
+            credentials.credentials,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
+        )
+
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="Could not validate credentials"
+            )
+
+        db = get_database()
+        user = await db.users.find_one({"_id": ObjectId(user_id)})
+
+        if not user:
+            raise HTTPException(
+                status_code=404,
+                detail="User not found"
+            )
+
+        user_obj = UserDocument(**user)
+
+        if user_obj.verification_status != UserVerificationStatus.VERIFIED:
+            raise HTTPException(
+                status_code=403,
+                detail="Account not verified"
+            )
+
+        return user_obj
+    except jwt.InvalidTokenError:
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials"
+        )
 
 
 @router.post("/auth/google", response_model=UserLoginResponse)
@@ -143,3 +190,48 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             status_code=500,
             detail=f"Error getting user info: {str(e)}"
         )
+
+
+@router.get("/auth/cookie-preferences", response_model=CookiePreferencesResponse)
+async def get_cookie_preferences(user: UserDocument = Depends(get_verified_user)):
+    prefs = user.cookie_preferences or CookiePreferences()
+    return CookiePreferencesResponse(
+        necessary=True,
+        preferences=prefs.preferences,
+        analytics=prefs.analytics,
+        marketing=prefs.marketing,
+        updated_at=prefs.updated_at
+    )
+
+
+@router.put("/auth/cookie-preferences", response_model=CookiePreferencesResponse)
+async def update_cookie_preferences(
+    request: Request,
+    user: UserDocument = Depends(get_verified_user)
+):
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+
+    preferences = CookiePreferences(
+        necessary=True,
+        preferences=bool(body.get("preferences", False)),
+        analytics=bool(body.get("analytics", False)),
+        marketing=bool(body.get("marketing", False)),
+        updated_at=datetime.utcnow()
+    )
+
+    db = get_database()
+    await db.users.update_one(
+        {"_id": ObjectId(str(user.id))},
+        {"$set": {"cookie_preferences": preferences.model_dump()}}
+    )
+
+    return CookiePreferencesResponse(
+        necessary=True,
+        preferences=preferences.preferences,
+        analytics=preferences.analytics,
+        marketing=preferences.marketing,
+        updated_at=preferences.updated_at
+    )
