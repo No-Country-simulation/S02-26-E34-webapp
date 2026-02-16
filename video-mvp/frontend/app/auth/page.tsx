@@ -128,7 +128,7 @@ export default function AuthPage() {
           src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1920"
           alt="Abstract background"
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0a0a0f]"></div>
+        <div className="absolute inset-0 bg-linear-to-b from-transparent to-[#0a0a0f]"></div>
       </div>
 
       <main className="relative z-10 w-full max-w-md">
@@ -173,9 +173,9 @@ export default function AuthPage() {
             <div id="google-signin-button" className="w-full flex justify-center"></div>
 
             <div className="relative flex items-center py-4">
-              <div className="flex-grow border-t border-white/10"></div>
-              <span className="flex-shrink mx-4 text-xs font-medium text-slate-500 uppercase tracking-widest">o</span>
-              <div className="flex-grow border-t border-white/10"></div>
+              <div className="grow border-t border-white/10"></div>
+              <span className="shrink mx-4 text-xs font-medium text-slate-500 uppercase tracking-widest">o</span>
+              <div className="grow border-t border-white/10"></div>
             </div>
 
             <form onSubmit={handleSubmit} className="w-full space-y-3">

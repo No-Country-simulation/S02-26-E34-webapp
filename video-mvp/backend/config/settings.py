@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     # Application
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Video Converter API"
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+    PORT: int = int(os.getenv("PORT", "8001"))
+
 
     # Paths
     BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

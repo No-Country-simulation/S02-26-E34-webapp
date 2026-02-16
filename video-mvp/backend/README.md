@@ -25,6 +25,8 @@ Este es el backend del proyecto de edición de video que convierte videos horizo
 - `MAX_FILE_SIZE`: Tamaño máximo de archivo en bytes
 - `YOLO_MODEL_PATH`: Ruta al modelo YOLO
 - `WHISPER_MODEL_SIZE`: Tamaño del modelo Whisper
+- `HOST`: Host para el servidor (ej. 0.0.0.0)
+- `PORT`: Puerto para el servidor (ej. 8001)
 
 ## Endpoints
 
