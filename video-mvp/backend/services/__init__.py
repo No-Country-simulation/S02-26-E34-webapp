@@ -1,2 +1,16 @@
 # backend/services/__init__.py
-from . import video_processor, object_detection, subtitle_generator, branding_service
+"""
+Service layer for business logic.
+
+Services provide:
+- Business logic encapsulation
+- Transaction management
+- Cross-repository operations
+- External service integration
+- Caching strategies
+"""
+
+from services.video_service import VideoService
+from services.user_service import UserService
+
+__all__ = ["VideoService", "UserService"]

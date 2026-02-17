@@ -1,2 +1,7 @@
 # backend/config/__init__.py
-from . import settings, ai_settings
+"""
+Configuration module.
+
+All settings are now unified in config.settings
+"""
+from . import settings
