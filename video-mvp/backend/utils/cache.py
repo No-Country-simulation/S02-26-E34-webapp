@@ -74,7 +74,9 @@ class CacheService:
             logger.info("✓ Redis connected (max_connections=50)")
             
         except Exception as e:
-            logger.warning(f"Redis connection failed: {e}. Cache disabled.")
+            # Redis is optional - only log at INFO level
+            # System will work without caching
+            logger.info(f"Redis not available (optional). Cache disabled. {e}")
             self._connected = False
             self.redis = None
     
