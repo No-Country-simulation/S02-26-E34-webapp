@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
+from bson.errors import InvalidId
 
 from schemas.video import VideoStatus
 
@@ -53,7 +54,7 @@ class VideoRepository:
             try:
                 obj_id = ObjectId(video_id)
                 return await self.collection.find_one({"_id": obj_id})
-            except (ObjectId, TypeError):
+            except (InvalidId, TypeError):
                 return await self.collection.find_one({"_id": video_id})
         except Exception as e:
             logger.error(f"Error getting video {video_id}: {e}")

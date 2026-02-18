@@ -69,7 +69,7 @@ async def upload_video(
 
     try:
         with open(temp_file_path, "wb") as buffer:
-            while chunk := await file.file.read(8192):  # 8KB chunks
+            while chunk := await file.read(8192):  # 8KB chunks
                 buffer.write(chunk)
 
         # Get file size from disk

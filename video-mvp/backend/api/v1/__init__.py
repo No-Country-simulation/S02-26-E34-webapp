@@ -13,7 +13,7 @@ Endpoints:
     - /auth - Authentication operations
 """
 
-from fastapi import APIRouter, Path, Depends
+from fastapi import APIRouter, Path, Depends, HTTPException
 from http import HTTPStatus
 
 from api.v1.endpoints import upload, download, videos, users, auth

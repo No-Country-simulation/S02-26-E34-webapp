@@ -35,7 +35,8 @@ async def get_database() -> AsyncGenerator[AsyncIOMotorDatabase, None]:
     Usage:
         db = Depends(get_database)
     """
-    yield get_db()
+    async for db in get_db():
+        yield db
 
 
 # ==================== Repository Dependencies ====================

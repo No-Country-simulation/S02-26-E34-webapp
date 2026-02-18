@@ -47,6 +47,20 @@ class Settings(BaseSettings):
     SECRET_KEY: str = "dev-secret-key-change-in-production"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ALLOWED_ORIGINS: List[str] = ["*"]
+    
+    # ==================== Rate Limiting ====================
+    RATE_LIMIT_DEFAULT_REQUESTS: int = 100
+    RATE_LIMIT_DEFAULT_WINDOW: int = 60
+    
+    RATE_LIMIT_UPLOAD_REQUESTS: int = 10
+    RATE_LIMIT_UPLOAD_WINDOW: int = 3600
+    
+    RATE_LIMIT_AUTH_REQUESTS: int = 5
+    RATE_LIMIT_AUTH_WINDOW: int = 60
+    
+    RATE_LIMIT_API_REQUESTS: int = 1000
+    RATE_LIMIT_API_WINDOW: int = 60
     
     # ==================== Video Processing ====================
     MAX_FILE_SIZE: int = 50 * 1024 * 1024  # 50MB

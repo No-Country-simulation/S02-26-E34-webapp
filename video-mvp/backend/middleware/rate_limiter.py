@@ -147,17 +147,29 @@ class RateLimiter:
 
 # ==================== Global Limiters ====================
 
-# Default rate limiter: 100 requests per minute
-default_limiter = RateLimiter(max_requests=100, window_seconds=60)
+# Default rate limiter
+default_limiter = RateLimiter(
+    max_requests=settings.RATE_LIMIT_DEFAULT_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_DEFAULT_WINDOW
+)
 
-# Upload limiter: 10 uploads per hour
-upload_limiter = RateLimiter(max_requests=10, window_seconds=3600)
+# Upload limiter
+upload_limiter = RateLimiter(
+    max_requests=settings.RATE_LIMIT_UPLOAD_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_UPLOAD_WINDOW
+)
 
-# Auth limiter: 5 attempts per minute
-auth_limiter = RateLimiter(max_requests=5, window_seconds=60)
+# Auth limiter
+auth_limiter = RateLimiter(
+    max_requests=settings.RATE_LIMIT_AUTH_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_AUTH_WINDOW
+)
 
-# API limiter: 1000 requests per minute (for authenticated users)
-api_limiter = RateLimiter(max_requests=1000, window_seconds=60)
+# API limiter
+api_limiter = RateLimiter(
+    max_requests=settings.RATE_LIMIT_API_REQUESTS,
+    window_seconds=settings.RATE_LIMIT_API_WINDOW
+)
 
 
 # ==================== Middleware ====================

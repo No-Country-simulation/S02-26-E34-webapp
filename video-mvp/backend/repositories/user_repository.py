@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from bson import ObjectId
+from bson.errors import InvalidId
 
 from schemas.user import UserRole, UserVerificationStatus
 
@@ -52,7 +53,7 @@ class UserRepository:
             try:
                 obj_id = ObjectId(user_id)
                 return await self.collection.find_one({"_id": obj_id})
-            except (ObjectId, TypeError):
+            except (InvalidId, TypeError):
                 return await self.collection.find_one({"_id": user_id})
         except Exception as e:
             logger.error(f"Error getting user {user_id}: {e}")

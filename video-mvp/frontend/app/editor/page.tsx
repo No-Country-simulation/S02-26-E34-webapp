@@ -127,7 +127,7 @@ export default function ImprovedEditorPage() {
 
     // Check backend status before processing
     try {
-      const healthUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/health`;
+      const healthUrl = `${API_BASE_URL}/health`;
       const response = await fetch(healthUrl);
       if (!response.ok) {
         showInfo(

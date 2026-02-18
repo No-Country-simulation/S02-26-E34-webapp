@@ -68,6 +68,15 @@ wheels = [
 ]
 
 [[package]]
+name = "attrs"
+version = "25.4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/6b/5c/685e6633917e101e5dcb62b9dd76946cbb57c26e133bae9e0cd36033c0a9/attrs-25.4.0.tar.gz", hash = "sha256:16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11", size = 934251, upload-time = "2025-10-06T13:54:44.725Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/2a/7cc015f5b9f5db42b7d48157e23356022889fc354a2813c15934b7cb5c0e/attrs-25.4.0-py3-none-any.whl", hash = "sha256:adcf7e2a1fb3b36ac48d97835bb6d8ade15b8dcce26aba8bf1d14847b57a3373", size = 67615, upload-time = "2025-10-06T13:54:43.17Z" },
+]
+
+[[package]]
 name = "backend"
 version = "0.1.0"
 source = { editable = "." }
@@ -104,7 +113,7 @@ requires-dist = [
     { name = "google-auth", specifier = "==2.23.4" },
     { name = "google-auth-httplib2", specifier = "==0.1.1" },
     { name = "google-auth-oauthlib", specifier = "==1.1.0" },
-    { name = "mediapipe", specifier = ">=0.10.0" },
+    { name = "mediapipe", specifier = "==0.10.5" },
     { name = "motor", specifier = "==3.3.2" },
     { name = "nest-asyncio", specifier = "==1.5.8" },
     { name = "numpy", specifier = "==1.24.3" },
@@ -942,20 +951,27 @@ wheels = [
 
 [[package]]
 name = "mediapipe"
-version = "0.10.32"
+version = "0.10.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
+    { name = "attrs" },
     { name = "flatbuffers" },
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "opencv-contrib-python" },
+    { name = "protobuf" },
     { name = "sounddevice" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/24/d9/ca1be234911c76ccd87a9e0d8210394153cb6ad9b5da65a231aff8769d6f/mediapipe-0.10.32-py3-none-macosx_11_0_arm64.whl", hash = "sha256:b62178b7585e0bb8789075c43bbb3e352fbc4a8f765797fded509f86a098b29b", size = 19386286, upload-time = "2026-01-22T16:15:01.042Z" },
-    { url = "https://files.pythonhosted.org/packages/e3/98/00cd8b2dcb563f2298655633e6611a791b2c1a7df1dae064b2b96084f1bf/mediapipe-0.10.32-py3-none-manylinux_2_28_x86_64.whl", hash = "sha256:4b0941fbbbce41862f13cb1850c4878c13dbc62cd5e81e74880051b7a20ce3b6", size = 10331072, upload-time = "2026-01-22T16:15:04.747Z" },
-    { url = "https://files.pythonhosted.org/packages/fe/63/c9172142521fc334fa891be9ef6259a3790502041b395127d63755cb3f0b/mediapipe-0.10.32-py3-none-win_amd64.whl", hash = "sha256:438d98977a4e1b0f88070ad16537a328912f847ce9debf236da047b0b483cbfd", size = 10211344, upload-time = "2026-01-22T16:15:11.716Z" },
+    { url = "https://files.pythonhosted.org/packages/82/9f/f5c7e430311c77759ed3a09b56c515b04169a08ac2134bae7ab84f830b0c/mediapipe-0.10.5-cp310-cp310-macosx_11_0_universal2.whl", hash = "sha256:21081d59a516cf659caa8cf9531b5aad4dfce5daf79373463c0b0ac1d182a6dc", size = 53780607, upload-time = "2023-09-15T01:10:41.671Z" },
+    { url = "https://files.pythonhosted.org/packages/0d/52/4bc7fb8b480587cecfbdec30e2434f8891125afe79101895795a57eeeb2b/mediapipe-0.10.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:02336e06d531076d203e968647c11a8457981c46f8af9e57ffb178d19b96167c", size = 32519994, upload-time = "2023-09-15T01:10:55.178Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/58/1ec1516ee0f3e9f8073bf72a4c1653712b737068584a8cc91d1906d13a10/mediapipe-0.10.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:9410fc9a0b34d1edd00b5ff6ddf54fd49648527fa7e86db9f817442c4c080d5d", size = 33534774, upload-time = "2023-09-15T01:11:06.061Z" },
+    { url = "https://files.pythonhosted.org/packages/cc/d8/c77d3f50bf59e28dd1d82ac5a07770a806522848227f7f00d932b34862bf/mediapipe-0.10.5-cp310-cp310-win_amd64.whl", hash = "sha256:e83f7531a64803afe0547385c5a69ac01bd109e1b63a250dc8d30052160a8068", size = 50266774, upload-time = "2023-09-15T01:11:32.065Z" },
+    { url = "https://files.pythonhosted.org/packages/0f/fe/29cf25615d2da95d8f888abca27d0234db7e46bf1ea348dbd0e12b668835/mediapipe-0.10.5-cp311-cp311-macosx_11_0_universal2.whl", hash = "sha256:3a127c181df20e69a871f23910338633a33eb8b394ee6f9108307b74a3a483fe", size = 53780507, upload-time = "2023-09-15T01:11:56.314Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/33/dce71978aa1c1d6858274674314d8b885c11e5dafe3549b4249c2b38c6a4/mediapipe-0.10.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:fd7b6dadd793a2aab69447e72cc9bca15b5c5e74f9823e8cb2cb02c745b2ac98", size = 32508469, upload-time = "2023-09-15T03:22:04.092Z" },
+    { url = "https://files.pythonhosted.org/packages/86/72/ddcfd72568305c981b11c588209c8e21fd69abbe66dead796bf6eaa03e63/mediapipe-0.10.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:b681e3d00926ad6e68abf4bcd697b78fe2cd4157cf594b6c99b222c676c29357", size = 33534461, upload-time = "2023-09-15T01:16:07.456Z" },
+    { url = "https://files.pythonhosted.org/packages/f6/10/475247e1773227f565f109110af069ee1a37b8c194ba677ea337ec988a5a/mediapipe-0.10.5-cp311-cp311-win_amd64.whl", hash = "sha256:71edc6db157c41ce936906356e1f2c1d29213e3b2db4a7a16cb77731a34b455d", size = 50266825, upload-time = "2023-09-15T01:16:31.224Z" },
 ]
 
 [[package]]
@@ -1100,6 +1116,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a1/96/06e01a7b38dce6fe1db213e061a4602dd6032a8a97ef6c1a862537732421/prompt_toolkit-3.0.52.tar.gz", hash = "sha256:28cde192929c8e7321de85de1ddbe736f1375148b02f2e17edd840042b1be855", size = 434198, upload-time = "2025-08-27T15:24:02.057Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl", hash = "sha256:9aac639a3bbd33284347de5ad8d68ecc044b91a762dc39b7c21095fcd6a19955", size = 391431, upload-time = "2025-08-27T15:23:59.498Z" },
+]
+
+[[package]]
+name = "protobuf"
+version = "3.20.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/5b/e3d951e34f8356e5feecacd12a8e3b258a1da6d9a03ad1770f28925f29bc/protobuf-3.20.3.tar.gz", hash = "sha256:2e3427429c9cffebf259491be0af70189607f365c2f41c7c3764af6f337105f2", size = 216768, upload-time = "2022-09-29T22:39:47.592Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/28/55/b80e8567ec327c060fa39b242392e25690c8899c489ecd7bb65b46b7bb55/protobuf-3.20.3-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:f4bd856d702e5b0d96a00ec6b307b0f51c1982c2bf9c0052cf9019e9a544ba99", size = 918427, upload-time = "2022-09-29T22:10:52.591Z" },
+    { url = "https://files.pythonhosted.org/packages/31/be/80a9c6f16dfa4d41be3edbe655349778ae30882407fa8275eb46b4d34854/protobuf-3.20.3-cp310-cp310-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:9aae4406ea63d825636cc11ffb34ad3379335803216ee3a856787bcf5ccc751e", size = 1051042, upload-time = "2022-09-29T22:10:54.629Z" },
+    { url = "https://files.pythonhosted.org/packages/db/96/948d3fcc1fa816e7ae1d27af59b9d8c5c5e582f3994fd14394f31da95b99/protobuf-3.20.3-cp310-cp310-win32.whl", hash = "sha256:28545383d61f55b57cf4df63eebd9827754fd2dc25f80c5253f9184235db242c", size = 780167, upload-time = "2022-09-29T22:10:56.276Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/5e/fc6feb366b0a9f28e0a2de3b062667c521cd9517d4ff55077b8f351ba2f3/protobuf-3.20.3-cp310-cp310-win_amd64.whl", hash = "sha256:67a3598f0a2dcbc58d02dd1928544e7d88f764b47d4a286202913f0b2801c2e7", size = 904029, upload-time = "2022-09-29T22:10:57.866Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/14/619e24a4c70df2901e1f4dbc50a6291eb63a759172558df326347dce1f0d/protobuf-3.20.3-py2.py3-none-any.whl", hash = "sha256:a7ca6d488aa8ff7f329d4c545b2dbad8ac31464f1d8b1c87ad1346717731e4db", size = 162128, upload-time = "2022-09-29T22:39:44.547Z" },
 ]
 
 [[package]]

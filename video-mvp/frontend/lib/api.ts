@@ -1,7 +1,8 @@
 import { showError } from './sweetalert';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-export const BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+// Usar rutas relativas para aprovechar el rewrite de Next.js y evitar CORS
+export const API_BASE_URL = '/api/v1';
+export const BASE_URL = '';
 export const HEALTH_URL = `${API_BASE_URL}/health`;
 
 interface UploadResponse {
