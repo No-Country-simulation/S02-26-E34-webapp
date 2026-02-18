@@ -6,7 +6,7 @@ Plataforma SaaS que convierte automáticamente videos horizontales (16:9) en ver
 
 - Subida de videos mediante arrastrar y soltar
 - Conversión automática de 16:9 a 9:16
-- Reencuadre inteligente con detección de rostros/objetos
+- Reencuadre inteligente con detección de rostros mediante MediaPipe
 - Generación de subtítulos automáticos
 - Overlay de branding (logo/texto)
 - Descarga de videos convertidos
@@ -33,7 +33,7 @@ Plataforma SaaS que convierte automáticamente videos horizontales (16:9) en ver
 - Redis
 - **MongoDB** (migrado desde PostgreSQL para mayor flexibilidad)
 - FFmpeg
-- YOLOv8 (Ultralytics)
+- MediaPipe (Detección de rostros)
 - OpenCV
 - Whisper (OpenAI)
 
@@ -70,6 +70,9 @@ uv sync
 # Configurar variables de entorno
 cp .env.example .env
 # Edita el archivo .env con tus credenciales locales de MongoDB y Redis
+
+# Optimización de caché para UV (Recomendado)
+export UV_CACHE_DIR="/ruta/a/tu/disco/.uv_cache"
 ```
 
 **Iniciar Backend:**

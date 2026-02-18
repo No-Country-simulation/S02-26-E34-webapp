@@ -1,119 +1,120 @@
-# backend/services/object_detection.py - Modified to handle missing dependencies gracefully
+# backend/services/object_detection.py
 import logging
 from typing import List, Tuple, Dict, Any
 import os
+import cv2
+import numpy as np
+
+try:
+    import mediapipe as mp
+    MEDIAPIPE_AVAILABLE = True
+except ImportError:
+    MEDIAPIPE_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
 class ObjectDetectionService:
-    def __init__(self, model_path: str = "yolov8n.pt"):
+    def __init__(self):
         """
-        Inicializa el servicio de detección de objetos
+        Inicializa el servicio de detección de objetos usando MediaPipe
         """
-        self.model_path = model_path
-        self.model = None
-        try:
-            import cv2  # Check if cv2 is available
-            self.cv2_available = True
-        except ImportError:
-            logger.warning("OpenCV not available, object detection will be disabled")
-            self.cv2_available = False
+        self.mp_face_detection = None
+        self.face_detection = None
+        self.cv2_available = True
         
-        try:
-            import numpy as np  # Check if numpy is available
-            self.np_available = True
-        except ImportError:
-            logger.warning("NumPy not available")
-            self.np_available = False
-            
-        try:
-            # Try to import ultralytics
-            from ultralytics import YOLO
-            self.yolo_available = True
-            self.YOLO = YOLO
-        except ImportError:
-            logger.warning("Ultralytics not available, using mock detection")
-            self.yolo_available = False
+        if not MEDIAPIPE_AVAILABLE:
+            logger.warning("MediaPipe no está disponible, la detección estará desactivada")
+        else:
+            self.mp_face_detection = mp.solutions.face_detection
 
     def load_model(self):
         """
-        Carga el modelo YOLOv8
+        Carga el modelo de detección de rostros de MediaPipe
         """
-        if not self.yolo_available:
-            logger.info("YOLO not available, skipping model loading")
+        if not MEDIAPIPE_AVAILABLE:
             return
-            
+
         try:
-            self.model = self.YOLO(self.model_path)
-            logger.info(f"Modelo YOLOv8 '{self.model_path}' cargado exitosamente")
+            # model_selection: 0 para rostros a menos de 2 metros, 1 para más de 2 metros
+            self.face_detection = self.mp_face_detection.FaceDetection(
+                model_selection=1, 
+                min_detection_confidence=0.5
+            )
+            logger.info("Modelo MediaPipe Face Detection cargado exitosamente")
         except Exception as e:
-            logger.error(f"Error al cargar el modelo YOLOv8: {e}")
-            raise
+            logger.error(f"Error al cargar MediaPipe Face Detection: {e}")
+            self.face_detection = None
 
     def detect_objects_in_frame(self, frame):
         """
-        Detecta objetos en un frame individual
+        Detecta rostros en un frame individual usando MediaPipe
         """
-        if not self.yolo_available or self.model is None:
-            # Return empty detections if model not available
-            return []
+        if not MEDIAPIPE_AVAILABLE or self.face_detection is None:
+            if MEDIAPIPE_AVAILABLE and self.face_detection is None:
+                self.load_model()
+            
+            if self.face_detection is None:
+                return []
 
         try:
-            results = self.model(frame)
+            # MediaPipe requiere RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = self.face_detection.process(rgb_frame)
 
             detections = []
-            for result in results:
-                boxes = result.boxes
-                if boxes is not None:
-                    for box in boxes:
-                        # Extraer información de la detección
-                        xyxy = box.xyxy[0].cpu().numpy()  # Coordenadas x1, y1, x2, y2
-                        conf = float(box.conf[0])  # Confianza
-                        cls = int(box.cls[0])  # Clase
+            if results.detections:
+                ih, iw, _ = frame.shape
+                for detection in results.detections:
+                    # Extraer bbox relativo
+                    bbox = detection.location_data.relative_bounding_box
+                    
+                    # Convertir a coordenadas absolutas
+                    x1 = int(bbox.xmin * iw)
+                    y1 = int(bbox.ymin * ih)
+                    width = int(bbox.width * iw)
+                    height = int(bbox.height * ih)
+                    x2 = x1 + width
+                    y2 = y1 + height
 
-                        # Obtener nombre de la clase
-                        class_name = self.model.names[cls]
+                    # Asegurar que no se salgan del frame
+                    x1 = max(0, x1)
+                    y1 = max(0, y1)
+                    x2 = min(iw, x2)
+                    y2 = min(ih, y2)
 
-                        detection = {
-                            'bbox': xyxy.tolist(),
-                            'confidence': conf,
-                            'class_id': cls,
-                            'class_name': class_name,
-                            'center_x': (xyxy[0] + xyxy[2]) / 2,
-                            'center_y': (xyxy[1] + xyxy[3]) / 2,
-                            'width': xyxy[2] - xyxy[0],
-                            'height': xyxy[3] - xyxy[1]
-                        }
-
-                        # Filtrar por confianza mínima y clases relevantes
-                        if conf > 0.5 and class_name in ['person', 'face', 'human']:
-                            detections.append(detection)
+                    detection_data = {
+                        'bbox': [x1, y1, x2, y2],
+                        'confidence': float(detection.score[0]),
+                        'class_id': 0, # MediaPipe Face Detection solo tiene una clase
+                        'class_name': 'face',
+                        'center_x': x1 + width / 2,
+                        'center_y': y1 + height / 2,
+                        'width': width,
+                        'height': height
+                    }
+                    detections.append(detection_data)
 
             return detections
         except Exception as e:
-            logger.error(f"Error in detect_objects_in_frame: {e}")
-            return []  # Return empty list on error
+            logger.error(f"Error en detect_objects_in_frame: {e}")
+            return []
 
     def detect_faces_and_objects(self, video_path: str, sample_rate: int = 30) -> List[Dict[str, Any]]:
         """
-        Detecta rostros y objetos relevantes en un video
+        Detecta rostros en un video usando MediaPipe
         """
-        if not self.cv2_available:
-            logger.warning("OpenCV not available, returning empty detections")
-            return []
-            
-        import cv2
-        import numpy as np
-
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise ValueError(f"No se pudo abrir el video: {video_path}")
+            logger.error(f"No se pudo abrir el video: {video_path}")
+            return []
 
         fps = cap.get(cv2.CAP_PROP_FPS)
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        # Si fps es 0 o inválido, usar 30 por defecto
+        if fps <= 0:
+            fps = 30.0
 
-        # Calcular el paso para muestreo
-        step = max(1, int(fps))  # Analizar cada segundo
+        # Analizar cada N frames para ahorrar procesador (aprox 1 vez por segundo)
+        step = max(1, int(fps))
 
         all_detections = []
         frame_idx = 0
@@ -123,7 +124,6 @@ class ObjectDetectionService:
             if not ret:
                 break
 
-            # Analizar cada 'step' frames
             if frame_idx % step == 0:
                 detections = self.detect_objects_in_frame(frame)
 
@@ -138,98 +138,64 @@ class ObjectDetectionService:
             frame_idx += 1
 
         cap.release()
-
         return all_detections
 
     def calculate_optimal_crop(self, video_path: str, target_aspect_ratio: float = 9/16) -> Tuple[int, int, int, int]:
         """
-        Calcula el recorte óptimo para mantener objetos relevantes centrados
+        Calcula el recorte óptimo para mantener los rostros detectados centrados
         """
-        if not self.cv2_available:
-            # If OpenCV is not available, return a central crop
-            import cv2
-            cap = cv2.VideoCapture(video_path)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            cap.release()
-
-            # Recorte central
-            center_x, center_y = width // 2, height // 2
-            crop_width = min(width, int(height * target_aspect_ratio))
-            crop_height = min(height, int(width / target_aspect_ratio))
-
-            x1 = max(0, center_x - crop_width // 2)
-            y1 = max(0, center_y - crop_height // 2)
-            x2 = min(width, x1 + crop_width)
-            y2 = min(height, y1 + crop_height)
-
-            return int(x1), int(y1), int(x2), int(y2)
-
-        # Obtener detecciones del video
-        detections = self.detect_faces_and_objects(video_path)
-
-        if not detections:
-            # Si no hay detecciones, retornar recorte central
-            import cv2
-            cap = cv2.VideoCapture(video_path)
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            cap.release()
-
-            # Recorte central
-            center_x, center_y = width // 2, height // 2
-            crop_width = min(width, int(height * target_aspect_ratio))
-            crop_height = min(height, int(width / target_aspect_ratio))
-
-            x1 = max(0, center_x - crop_width // 2)
-            y1 = max(0, center_y - crop_height // 2)
-            x2 = min(width, x1 + crop_width)
-            y2 = min(height, y1 + crop_height)
-
-            return x1, y1, x2, y2
-
-        # Calcular el área de interés basado en las detecciones
-        all_centers_x = []
-        all_centers_y = []
-
-        for frame_detection in detections:
-            for detection in frame_detection['detections']:
-                all_centers_x.append(detection['center_x'])
-                all_centers_y.append(detection['center_y'])
-
-        # Calcular el centro promedio de todas las detecciones
-        avg_center_x = int(sum(all_centers_x) / len(all_centers_x)) if all_centers_x else width // 2
-        avg_center_y = int(sum(all_centers_y) / len(all_centers_y)) if all_centers_y else height // 2
-
         # Obtener dimensiones del video
-        import cv2
         cap = cv2.VideoCapture(video_path)
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         cap.release()
 
-        # Calcular dimensiones del recorte
-        crop_width = min(width, int(height * target_aspect_ratio))
-        crop_height = min(height, int(width / target_aspect_ratio))
+        if width == 0 or height == 0:
+            return 0, 0, 1080, 1920 # Fallback default
 
-        # Ajustar el centro para evitar recortes fuera del marco
-        x1 = max(0, avg_center_x - crop_width // 2)
-        y1 = max(0, avg_center_y - crop_height // 2)
-        x2 = min(width, x1 + crop_width)
-        y2 = min(height, y1 + crop_height)
+        # Obtener detecciones
+        detections = self.detect_faces_and_objects(video_path)
 
-        # Asegurar que el recorte tenga las dimensiones correctas
-        if x2 - x1 < crop_width:
-            if x1 == 0:
-                x2 = min(width, x1 + crop_width)
-            else:
-                x1 = max(0, x2 - crop_width)
+        # Calcular dimensiones deseadas para el recorte
+        # El recorte debe tener el aspect ratio objetivo (9:16)
+        if (width / height) > target_aspect_ratio:
+            # El video es más ancho que el objetivo (paisaje), recortamos horizontalmente
+            crop_height = height
+            crop_width = int(height * target_aspect_ratio)
+        else:
+            # El video es más alto que el objetivo (poco probable), recortamos verticalmente
+            crop_width = width
+            crop_height = int(width / target_aspect_ratio)
 
-        if y2 - y1 < crop_height:
-            if y1 == 0:
-                y2 = min(height, y1 + crop_height)
-            else:
-                y1 = max(0, y2 - crop_height)
+        if not detections:
+            # Si no hay detecciones, central el recorte
+            x1 = max(0, (width - crop_width) // 2)
+            y1 = max(0, (height - crop_height) // 2)
+        else:
+            # Calcular el centro promedio de todas las detecciones de rostros
+            all_centers_x = []
+            for frame_detection in detections:
+                for det in frame_detection['detections']:
+                    all_centers_x.append(det['center_x'])
+            
+            avg_center_x = int(sum(all_centers_x) / len(all_centers_x))
+            
+            # El eje Y lo mantenemos usualmente centrado o un poco arriba para rostros
+            # Pero para simplificar, lo centramos
+            center_y = height // 2
+            
+            # Calcular x1 basado en el centro promedio de rostros
+            x1 = max(0, avg_center_x - crop_width // 2)
+            y1 = max(0, center_y - crop_height // 2)
+            
+            # Asegurar que el recorte no se salga por la derecha o abajo
+            if x1 + crop_width > width:
+                x1 = width - crop_width
+            if y1 + crop_height > height:
+                y1 = height - crop_height
+
+        x2 = x1 + crop_width
+        y2 = y1 + crop_height
 
         return int(x1), int(y1), int(x2), int(y2)
 

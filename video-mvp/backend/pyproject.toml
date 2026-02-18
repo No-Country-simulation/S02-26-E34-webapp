@@ -22,7 +22,7 @@ dependencies = [
     "redis==5.0.1",
     "motor==3.3.2",
     "pymongo==4.6.0",
-    "ultralytics==8.0.218",
+    "mediapipe>=0.10.0",
     "uvicorn[standard]==0.24.0",
     "nest-asyncio==1.5.8",
     "google-auth==2.23.4",

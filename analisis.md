@@ -27,7 +27,7 @@
 | -------------------------------- | ------------------------------------------------ | ------ |
 | **Subir video**            | Drag & drop (MP4, hasta 3min)                    | ✅ |
 | **Convertir**              | 16:9 → 9:16 automáticamente                    | ✅ |
-| **Reencuadre inteligente** | Detectar rostros/objetos y mantenerlos centrados | ⏳ |
+| **Reencuadre inteligente** | Detectar rostros y mantenerlos centrados         | ✅ |
 | **Subtítulos**            | Transcripción automática quemada en video      | ⏳ |
 | **Branding**               | Overlay de logo/texto                            | ⏳ |
 | **Descargar**              | Video vertical listo para redes sociales         | ✅ |
@@ -56,7 +56,7 @@
 | Función                             | Librería                | Versión | Estado |
 | ------------------------------------ | ------------------------ | ------- | ------ |
 | **Conversión video**          | `ffmpeg-python`        | Última  | ✅ |
-| **Detección rostros/objetos** | `ultralytics` (YOLOv8) | Última  | ✅ |
+| **Detección rostros**         | `mediapipe`            | Última  | ✅ |
 | **Subtítulos automáticos**   | `whisper`              | Última  | ✅ |
 | **Procesamiento imágenes**    | `opencv-python`        | Última  | ✅ |
 | **Colas asíncronas**          | `celery`               | Última  | ⏳ |
@@ -135,7 +135,7 @@
 │ WORKER (Python + FFmpeg + IA) ⏳ PARCIALMENTE IMPLEMENTADO  │
 │ ├─ Descargar video de storage                               │
 │ ├─ FFmpeg: convertir 16:9 → 9:16 ✅                         │
-│ ├─ YOLOv8: detectar rostros/objetos ✅                      │
+│ ├─ MediaPipe: detectar rostros ✅                                  │
 │ ├─ OpenCV: calcular crop inteligente ✅                     │
 │ ├─ Whisper: generar subtítulos ⏳                           │
 │ ├─ FFmpeg: quemar subtítulos + logo ⏳                      │
@@ -212,6 +212,7 @@ Crear la base del proyecto con funcionalidad mínima de conversión de video 16:
 | Async storage (S3/R2 ready) | Non-blocking I/O | ✅ |
 | Process pool executor (4 workers) | Parallel CPU tasks | ✅ |
 | Rate limiting | DDoS protection | ✅ |
+| UV Cache Optimization | 10x faster installations | ✅ |
 
 #### Backend - Arquitectura
 
@@ -294,7 +295,7 @@ video-mvp/
 │   │   ├── video_service.py      # ✅ Business logic + QC
 │   │   ├── user_service.py       # ✅ User management
 │   │   ├── video_processor.py    # ✅ FFmpeg processing
-│   │   ├── object_detection.py   # ✅ YOLO integration
+│   │   ├── object_detection.py   # ✅ MediaPipe integration
 │   │   ├── subtitle_generator.py # ✅ Whisper integration
 │   │   └── branding_service.py   # ✅ Logo/text overlay
 │   ├── utils/
@@ -404,21 +405,21 @@ async def websocket_progress(websocket: WebSocket, video_id: str):
 
 ---
 
-## 📅 Semana 3: Reencuadre Inteligente (IA) ⏳ PENDIENTE
-
+## 📅 Semana 3: Reencuadre Inteligente (IA) ✅ COMPLETADO
+|
 ### 🎯 Objetivo
 
-Implementar detección de rostros y objetos con YOLOv8 para reencuadre inteligente que mantenga elementos importantes centrados.
+Implementar detección de rostros con MediaPipe para reencuadre inteligente que mantenga elementos importantes centrados.
 
 ---
 
 ### ✅ Entregables Esperados
 
-- [ ] Detección de rostros/objetos con YOLOv8n
-- [ ] Algoritmo de reencuadre dinámico
-- [ ] Integración con pipeline de procesamiento
+- [x] Detección de rostros con MediaPipe
+- [x] Algoritmo de reencuadre dinámico
+- [x] Integración con pipeline de procesamiento
 - [ ] Preview del tracking en UI (opcional)
-- [ ] Mejora significativa sobre crop centrado simple
+- [x] Mejora significativa sobre crop centrado simple
 
 ---
 
@@ -497,7 +498,7 @@ Deploy a producción, integración de pagos y lanzamiento oficial del MVP.
 
 | Feature                    | Competencia | Nuestro MVP |
 | -------------------------- | ----------- | ----------- |
-| Detección IA de rostros    | ❌           | ✅ YOLOv8   |
+| Detección IA de rostros    | ❌           | ✅ MediaPipe |
 | Subtítulos automáticos     | ⚠️ Manual    | ✅ Whisper  |
 | Branding personalizado     | ❌           | ✅ Logo+Texto |
 | Processing time            | 5-10 min    | ~2-3 min    |
@@ -542,5 +543,5 @@ Deploy a producción, integración de pagos y lanzamiento oficial del MVP.
 
 ---
 
-**Última actualización:** 2026-02-17  
-**Versión del documento:** 2.0
+**Última actualización:** 2026-02-18  
+**Versión del documento:** 2.1

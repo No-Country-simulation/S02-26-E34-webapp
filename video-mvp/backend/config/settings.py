@@ -54,10 +54,9 @@ class Settings(BaseSettings):
     SUPPORTED_FORMATS: List[str] = ["mp4", "mov", "avi", "mkv"]
     
     # ==================== AI Settings ====================
-    YOLO_MODEL_PATH: str = "yolov8n.pt"
+    # MediaPipe settings
+    MEDIAPIPE_MIN_DETECTION_CONFIDENCE: float = 0.5
     WHISPER_MODEL_SIZE: str = "base"
-    MIN_CONFIDENCE_THRESHOLD: float = 0.5
-    RELEVANT_CLASSES: List[str] = ["person", "face", "human"]
     
     # Subtitles
     SUBTITLE_LANGUAGE: str = "es"

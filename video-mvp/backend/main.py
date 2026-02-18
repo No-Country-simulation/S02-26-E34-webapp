@@ -212,7 +212,7 @@ async def health_check():
         "version": "1.0.0",
         "database": db_details,
         "ai_config": {
-            "yolo_model": settings.YOLO_MODEL_PATH,
+            "mediapipe_status": "enabled",
             "whisper_model": settings.WHISPER_MODEL_SIZE
         }
     }

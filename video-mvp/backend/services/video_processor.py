@@ -13,13 +13,6 @@ from bson import ObjectId
 
 # Handle optional imports for AI features
 try:
-    from ultralytics import YOLO
-    ultralytics_available = True
-except ImportError:
-    YOLO = None
-    ultralytics_available = False
-
-try:
     import whisper
     whisper_available = True
 except ImportError:
