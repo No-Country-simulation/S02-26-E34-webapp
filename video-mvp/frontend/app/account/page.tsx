@@ -95,11 +95,11 @@ export default function AccountPage() {
                             </div>
                         </div>
                     </div>
+
+                    <FeedbackCollector />
                 </div>
             </div>
         </div>
-
-        <FeedbackCollector />
     );
 }
 

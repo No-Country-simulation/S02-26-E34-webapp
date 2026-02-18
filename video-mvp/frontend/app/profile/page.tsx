@@ -173,10 +173,10 @@ export default function ProfilePage() {
                             </button>
                         </div>
                     </div>
+
+                    <FeedbackCollector />
                 </div>
             </div>
         </div>
-
-        <FeedbackCollector />
     );
 }
