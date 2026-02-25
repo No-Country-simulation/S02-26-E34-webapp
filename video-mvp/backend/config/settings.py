@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "Video Converter API"
     HOST: str = "0.0.0.0"
-    PORT: int = 8001
+    PORT: int = 8000
     
     # ==================== Paths ====================
     BASE_DIR: str = ""
