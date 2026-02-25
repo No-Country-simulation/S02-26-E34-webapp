@@ -29,6 +29,7 @@ from core import (
 	MediaPipeDetector,
 	Stabilizer,
 	CoreEngine,
+	HybridTrackerEngine,
 	VideoMetadata,
 	SelectionRect,
 	AnalysisRequest,
@@ -167,7 +168,7 @@ def run_test(args):
 		print("Using FakeDetector for detection.")
 
 	stabilizer = Stabilizer(alpha=args.alpha)
-	engine = CoreEngine(detector=detector, stabilizer=stabilizer, options={"smoothing_alpha": args.alpha, "expand_factor": args.expand})
+	engine = HybridTrackerEngine(stabilizer=stabilizer, options={"smoothing_alpha": args.alpha, "expand_factor": args.expand})
 
 	t0 = time.time()
 	resp = engine.analyze(frames_iter, request)

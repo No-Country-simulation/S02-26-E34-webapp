@@ -7,6 +7,7 @@ from .mediapipe_detector import MediaPipeDetector
 from .calculator import compute_9_16_window
 from .stabilizer import Stabilizer
 from .pipeline import CoreEngine
+from .hybrid_tracker import HybridTrackerEngine
 
 __all__ = [
     "DetectionBox",
@@ -20,6 +21,7 @@ __all__ = [
     "compute_9_16_window",
     "Stabilizer",
     "CoreEngine",
+    "HybridTrackerEngine",
 ]
 # backend/core/__init__.py
 """

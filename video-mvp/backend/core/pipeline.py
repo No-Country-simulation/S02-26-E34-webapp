@@ -49,15 +49,26 @@ class CoreEngine:
         
         target_timestamp = getattr(request, "timestamp_sec", 0.0)
         started_tracking = False
+        finished_tracking = False
         
-        # We will keep updating this 'tracker_rect' frame by frame
-        tracker_rect_px: Optional[Tuple[int, int, int, int]] = None
+        # Spatial tracker state
+        tracker_rect_px: Optional[Tuple[float, float, float, float]] = None
+        velocity_dx = 0.0
+        velocity_dy = 0.0
+        lost_frames = 0
+        MAX_LOST_FRAMES = 30  # At 30fps, 1 second of complete occlusion/disappearance means we stop tracking
         
         vw = request.video_metadata.width
         vh = request.video_metadata.height
 
         for frame_index, timestamp, frame in frames:
-            # If we haven't reached the target timestamp, we yield empty results
+            # If the subject is permanently lost, output empty crops for the rest of the video
+            if finished_tracking:
+                crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=None, crop_window=None, confidence=0.0, subject_detected=False)
+                crop_results.append(crop)
+                continue
+
+            # Skip frames until we reach the exact moment the user selected
             if timestamp < target_timestamp - 0.1:  # 100ms tolerance
                 crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=None, crop_window=None, confidence=0.0, subject_detected=False)
                 crop_results.append(crop)
@@ -66,7 +77,17 @@ class CoreEngine:
             ts_ms = int(round(timestamp * 1000)) if timestamp is not None else None
             boxes = self.detector.detect(frame, timestamp_ms=ts_ms)
             
+            # Nobody in frame at all
             if not boxes:
+                if started_tracking:
+                    lost_frames += 1
+                    if lost_frames > MAX_LOST_FRAMES:
+                        finished_tracking = True
+                    else:
+                        # Predict next position based on inertia
+                        x1, y1, x2, y2 = tracker_rect_px
+                        tracker_rect_px = (x1 + velocity_dx, y1 + velocity_dy, x2 + velocity_dx, y2 + velocity_dy)
+                
                 crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=None, crop_window=None, confidence=0.0, subject_detected=False)
                 crop_results.append(crop)
                 continue
@@ -74,7 +95,7 @@ class CoreEngine:
             best_box = None
             
             if not started_tracking:
-                # FIRST FRAME of tracking: use the user's selection_rect
+                # FIRST FRAME: Check user coordinates strictly
                 if getattr(request, "selection_rect", None):
                     sr: SelectionRect = request.selection_rect
                     sel_w_px = sr.w * vw
@@ -89,55 +110,74 @@ class CoreEngine:
                     for b in boxes:
                         iou_val = _iou(b, user_rect_px)
                         is_inside = _center_in_rect(b, user_rect_px)
-                        
                         score = iou_val + (0.1 if is_inside else 0.0)
                         
+                        # Only accept if it overlaps or center is inside the user selection
                         if score > best_iou and (iou_val > 0.01 or is_inside):
                             best_iou = score
                             best_box = b
                     
+                    # User clicked an empty space: ignore and wait
                     if best_box is None:
                         crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=None, crop_window=None, confidence=0.0, subject_detected=False)
                         crop_results.append(crop)
                         continue
-                        
                 else:
                     best_box = max(boxes, key=lambda b: b.confidence)
                 
                 started_tracking = True
+                tracker_rect_px = (float(best_box.x1), float(best_box.y1), float(best_box.x2), float(best_box.y2))
+                lost_frames = 0
             
             else:
-                # SUBSEQUENT FRAMES: Use Tracking with the previous frame's box
+                # SUBSEQUENT FRAMES: Pure spatial tracking with velocity prediction
                 best_score = -1.0
-                prev_cx = (tracker_rect_px[0] + tracker_rect_px[2]) / 2.0
-                prev_cy = (tracker_rect_px[1] + tracker_rect_px[3]) / 2.0
+                
+                # Where do we expect the person to be right now?
+                pred_x1 = tracker_rect_px[0] + velocity_dx
+                pred_y1 = tracker_rect_px[1] + velocity_dy
+                pred_x2 = tracker_rect_px[2] + velocity_dx
+                pred_y2 = tracker_rect_px[3] + velocity_dy
+                pred_rect = (pred_x1, pred_y1, pred_x2, pred_y2)
                 
                 for b in boxes:
-                    iou_val = _iou(b, tracker_rect_px)
+                    # How much does this person overlap with the PREDICTED position?
+                    iou_val = _iou(b, pred_rect)
                     
-                    # VERY STRICT: Must have at least 15% overlap with the previous frame's box
-                    # This prevents the tracker from jumping to another person standing nearby
-                    # when the main subject disappears.
-                    if iou_val > 0.15:
+                    # We ONLY accept boxes that physically overlap with where the person was heading
+                    if iou_val > 0.1:
                         if iou_val > best_score:
                             best_score = iou_val
                             best_box = b
                 
                 if best_box is None:
-                    # Subject lost in this frame
-                    # We don't update started_tracking = False, because if they reappear 
-                    # in the exact same spot, we might want to pick them up again.
-                    # Or we could just wait for them to reappear where they were lost.
+                    # The subject was not found near their expected position
+                    lost_frames += 1
+                    if lost_frames > MAX_LOST_FRAMES:
+                        finished_tracking = True
+                    else:
+                        # Keep moving the ghost box via inertia
+                        tracker_rect_px = pred_rect
+                        
                     crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=None, crop_window=None, confidence=0.0, subject_detected=False)
                     crop_results.append(crop)
                     continue
             
-            # Update tracker rect for the NEXT frame to be the current subject's box
-            tracker_rect_px = (best_box.x1, best_box.y1, best_box.x2, best_box.y2)
+            # Subject successfully found/tracked
+            if started_tracking and best_box is not None:
+                # Calculate velocity based on actual movement
+                if lost_frames == 0 and tracker_rect_px is not None:
+                    new_dx = float(best_box.x1) - tracker_rect_px[0]
+                    new_dy = float(best_box.y1) - tracker_rect_px[1]
+                    # Smooth the velocity so it doesn't jitter
+                    velocity_dx = (velocity_dx * 0.7) + (new_dx * 0.3)
+                    velocity_dy = (velocity_dy * 0.7) + (new_dy * 0.3)
+                
+                lost_frames = 0
+                tracker_rect_px = (float(best_box.x1), float(best_box.y1), float(best_box.x2), float(best_box.y2))
 
-            # smooth
+            # Smooth and output
             sm_box = self.stabilizer.smooth(best_box)
-            # compute 9:16
             x1, y1, x2, y2 = compute_9_16_window(sm_box, vw, vh, expand_factor=self.options.get("expand_factor", 1.2))
             crop = CropResult(frame_index=frame_index, timestamp=timestamp, detection_box=sm_box, crop_window=(x1, y1, x2, y2), confidence=sm_box.confidence, subject_detected=True)
             crop_results.append(crop)
