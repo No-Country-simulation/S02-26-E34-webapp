@@ -30,6 +30,8 @@ from .thumbnail_generator import generate_thumbnail, generate_preview_gif
 from .quality_control_service import QualityControlService
 from .statistics_service import StatisticsService
 from .categorization_service import CategorizationService
+from .transcription_service import transcription_service
+from .llm_service import llm_service
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -72,7 +74,34 @@ async def process_video_task(video_id: str):
         if not input_file:
              raise ValueError(f"No se encontró la ruta del archivo original para el video {video_id}")
              
-        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 10, "status_message": "Convirtiendo a formato vertical (9:16)..."}})
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 10, "status_message": "Transcribiendo contenido con Whisper AI..."}})
+        
+        # Generar transcripción completa para análisis posterior por LLM
+        transcription_data = transcription_service.transcribe(input_file)
+        
+        # Guardar transcripción en la base de datos para que el LLM pueda leerla después
+        await db.videos.update_one(
+            {"_id": video_record["_id"]},
+            {"$set": {
+                "transcription": transcription_data,
+                "progress": 20,
+                "status_message": "Analizando momentos virales con IA..."
+            }}
+        )
+
+        # Analizar momentos virales con LLM
+        viral_clips = llm_service.find_viral_moments(transcription_data)
+        
+        # Guardar clips seleccionados por el LLM
+        await db.videos.update_one(
+            {"_id": video_record["_id"]},
+            {"$set": {
+                "viral_clips": viral_clips,
+                "progress": 25,
+                "status_message": "Convirtiendo a formato vertical (9:16)..."
+            }}
+        )
+
         output_path = convert_to_vertical(input_file, video_id)
         
         # Aplicar recorte inteligente basado en IA si se detectan objetos relevantes

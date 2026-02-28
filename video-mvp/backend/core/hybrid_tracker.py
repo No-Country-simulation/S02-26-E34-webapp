@@ -160,7 +160,7 @@ class HybridTrackerEngine:
                     else:
                         logger.warning("No face found in selection. CSRT will track blindly.")
                     
-                    # Init CSRT
+                    # Init CSRT (Slow but accurate for initial lock)
                     self.tracker = cv2.TrackerCSRT_create()
                     self.tracker.init(frame, (x1, y1, x2 - x1, y2 - y1))
                     self.last_known_box = (x1, y1, x2, y2)
@@ -171,22 +171,21 @@ class HybridTrackerEngine:
                     crop_results.append(self._empty_crop(frame_index, timestamp))
 
             elif self.state == 2:
-                # ESTADO 2: Tracking Rápido (CSRT)
+                # ESTADO 2: Tracking Rápido (KCF)
                 success, bbox = self.tracker.update(frame)
                 
                 if success:
                     x, y, w, h = [int(v) for v in bbox]
                     
-                    # VALIDATION: Prevent CSRT from drifting into walls.
-                    # If it's a person, there should be a face nearby occasionally.
-                    # Let's check every 10 frames to confirm we are still tracking the face.
-                    if self.target_embedding is not None and frame_index % 10 == 0:
+                    # VALIDATION: Prevent tracker from drifting.
+                    # Check every 30 frames (1 second) to confirm target.
+                    if self.target_embedding is not None and frame_index % 30 == 0:
                         cand_face = self.fr.extract_face(frame, (x, y, x+w, y+h))
                         if cand_face is not None:
                             cand_emb = self.fr.get_embedding(frame, cand_face)
                             sim = self.fr.compare(self.target_embedding, cand_emb)
-                            if sim < 0.25: # SFace cosine similarity threshold is ~0.36
-                                logger.info(f"Frame {frame_index}: CSRT drifted to wrong person/object (Sim: {sim:.2f}). Dropping.")
+                            if sim < 0.25: 
+                                logger.info(f"Frame {frame_index}: Tracker drifted (Sim: {sim:.2f}). Dropping.")
                                 success = False
 
                 if success and w > 0 and h > 0 and x < vw and y < vh:
@@ -197,6 +196,7 @@ class HybridTrackerEngine:
                     crop_results.append(self._make_crop(frame_index, timestamp, self.last_known_box, vw, vh, 1.0))
                 else:
                     logger.info(f"Frame {frame_index}: Target lost. Switching to SEARCHING.")
+                    # Re-init with KCF next time if we find it
                     self.state = 3
                     self.frames_since_lost = 1
                     crop_results.append(self._empty_crop(frame_index, timestamp))
@@ -205,31 +205,29 @@ class HybridTrackerEngine:
                 # ESTADO 3: LOST & SEARCHING
                 self.frames_since_lost += 1
                 
-                # Check 1 of every N frames
-                if self.frames_since_lost % 10 == 0 and self.target_embedding is not None and self.fr.detector:
+                # Check 1 of every 15 frames for re-identification
+                if self.frames_since_lost % 15 == 0 and self.target_embedding is not None and self.fr.detector:
                     self.fr.detector.setInputSize((vw, vh))
                     _, faces = self.fr.detector.detect(frame)
                     
                     match_found = False
                     if faces is not None:
                         for face in faces:
-                            # Extract embedding for this face
                             cand_emb = self.fr.get_embedding(frame, face)
                             similarity = self.fr.compare(self.target_embedding, cand_emb)
                             
-                            # OpenCV SFace threshold is 0.363 for positive match
                             if similarity > 0.36:
                                 logger.info(f"Frame {frame_index}: Target RE-IDENTIFIED! Sim: {similarity:.3f}")
                                 match_found = True
                                 
-                                # Convert face box to body box approx to restart CSRT
                                 fx, fy, fw, fh = [int(v) for v in face[:4]]
                                 bx = max(0, fx - fw)
                                 by = max(0, fy - fh)
                                 bw = min(vw - bx, fw * 3)
                                 bh = min(vh - by, fh * 5)
                                 
-                                self.tracker = cv2.TrackerCSRT_create()
+                                # Use KCF for fast re-tracking
+                                self.tracker = cv2.TrackerKCF_create()
                                 self.tracker.init(frame, (bx, by, bw, bh))
                                 self.last_known_box = (bx, by, bx+bw, by+bh)
                                 self.state = 2

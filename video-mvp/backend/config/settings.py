@@ -71,6 +71,9 @@ class Settings(BaseSettings):
     # MediaPipe settings
     MEDIAPIPE_MIN_DETECTION_CONFIDENCE: float = 0.5
     WHISPER_MODEL_SIZE: str = "base"
+    OPENAI_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    LLM_MODEL: str = "gemini-1.5-flash"
     
     # Subtitles
     SUBTITLE_LANGUAGE: str = "es"

@@ -60,14 +60,6 @@ def visualize(video_path, json_path, out_path, sel_cx=None, sel_cy=None, sel_w=N
 
         crop_data = crops.get(frame_idx)
         if crop_data and crop_data.get('subject_detected', False):
-            # Draw original detection box (Blue)
-            db = crop_data.get('detection_box')
-            if db:
-                dx1, dy1, dx2, dy2 = int(db['x1']), int(db['y1']), int(db['x2']), int(db['y2'])
-                cv2.rectangle(frame, (dx1, dy1), (dx2, dy2), (255, 0, 0), 2)
-                cv2.putText(frame, f"Det {db.get('confidence', 0):.2f}", (dx1, max(10, dy1 - 10)),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 1)
-
             # Draw 9:16 smoothed crop window (Green)
             cw = crop_data.get('crop_window')
             if cw and len(cw) == 4:
