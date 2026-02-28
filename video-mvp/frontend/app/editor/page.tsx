@@ -186,7 +186,7 @@ export default function ImprovedEditorPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col bg-[#0a0a0f] py-4 md:py-8 overflow-x-hidden">
+    <div className="min-h-[calc(100vh-64px)] flex flex-col bg-background py-4 md:py-8 overflow-x-hidden">
       <main className="flex-1 max-w-[95%] xl:max-w-[85%] w-full mx-auto flex flex-col lg:flex-row gap-6 min-h-175 px-4 md:px-0">
 
         <SourceFrame

@@ -10,7 +10,7 @@ Optimized for:
 """
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List
+from typing import Optional, List, Any
 
 from pydantic import BaseModel, Field, ConfigDict
 from bson import ObjectId
@@ -101,6 +101,34 @@ class CookiePreferencesResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+# ==================== User Preferences / Social ====================
+
+class UserSettings(BaseModel):
+    """User preferences for the platform."""
+    language: str = "es"
+    theme: str = "dark"
+    email_notifications: bool = True
+    default_resolution: str = "1080p"
+    vertical_format: str = "9:16"
+    auto_subtitles: bool = True
+    auto_branding: bool = False
+
+
+class SocialConnection(BaseModel):
+    """Single social media connection."""
+    connected: bool = False
+    username: Optional[str] = None
+    display_name: str
+
+
+class SocialConnections(BaseModel):
+    """User social media connections."""
+    tiktok: SocialConnection = Field(default_factory=lambda: SocialConnection(display_name="TikTok"))
+    instagram: SocialConnection = Field(default_factory=lambda: SocialConnection(display_name="Instagram"))
+    youtube: SocialConnection = Field(default_factory=lambda: SocialConnection(display_name="YouTube"))
+    facebook: SocialConnection = Field(default_factory=lambda: SocialConnection(display_name="Facebook"))
+
+
 # ==================== User Schemas ====================
 
 class UserBase(BaseModel):
@@ -124,6 +152,9 @@ class UserUpdate(BaseModel):
     verification_status: Optional[UserVerificationStatus] = None
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     picture: Optional[str] = None
+    plan: Optional[str] = None
+    settings: Optional[UserSettings] = None
+    social_connections: Optional[SocialConnections] = None
 
 
 class UserDocument(BaseModel):
@@ -140,7 +171,12 @@ class UserDocument(BaseModel):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     verified_at: Optional[datetime] = None
     rejected_at: Optional[datetime] = None
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
     cookie_preferences: Optional[CookiePreferences] = None
+    plan: str = "Free"
+    settings: UserSettings = Field(default_factory=UserSettings)
+    social_connections: SocialConnections = Field(default_factory=SocialConnections)
     
     model_config = ConfigDict(
         populate_by_name=True,
@@ -159,7 +195,7 @@ class UserDocument(BaseModel):
 class UserResponse(BaseModel):
     """User response schema."""
     
-    id: str = Field(..., alias="_id")
+    id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
     email: str
     name: str
     picture: Optional[str] = None
@@ -167,6 +203,11 @@ class UserResponse(BaseModel):
     verification_status: UserVerificationStatus
     created_at: datetime
     verified_at: Optional[datetime] = None
+    is_deleted: bool = False
+    deleted_at: Optional[datetime] = None
+    plan: str = "Free"
+    settings: UserSettings = Field(default_factory=UserSettings)
+    social_connections: SocialConnections = Field(default_factory=SocialConnections)
     
     model_config = ConfigDict(
         populate_by_name=True,
@@ -177,7 +218,8 @@ class UserResponse(BaseModel):
                 "name": "John Doe",
                 "role": "user",
                 "verification_status": "verified",
-                "created_at": "2024-01-01T00:00:00Z"
+                "created_at": "2024-01-01T00:00:00Z",
+                "is_deleted": False
             }
         }
     )

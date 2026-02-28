@@ -66,7 +66,7 @@ const CookieConsent = () => {
 
     return (
         <div className="fixed bottom-6 left-6 right-6 md:left-auto md:right-6 md:w-100 z-200 animate-in slide-in-from-bottom-10 duration-500 ease-out">
-            <div className="bg-[#121022]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-6 overflow-hidden relative group">
+            <div className="bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl p-6 overflow-hidden relative group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-purple-500 to-[#3b2bee]"></div>
 
                 <div className="flex items-start gap-4 mb-4">
@@ -74,7 +74,7 @@ const CookieConsent = () => {
                         <Info className="w-5 h-5" />
                     </div>
                     <div className="flex-1">
-                        <h4 className="text-white font-bold mb-1">Valoramos tu privacidad</h4>
+                        <h4 className="text-foreground font-bold mb-1">Valoramos tu privacidad</h4>
                         <p className="text-xs text-slate-400 leading-relaxed">
                             Utilizamos cookies para personalizar tu experiencia y analizar nuestro tráfico. Al hacer clic en "Aceptar", consientes el uso de todas las cookies.
                         </p>
@@ -91,7 +91,7 @@ const CookieConsent = () => {
                     </button>
                     <button
                         onClick={handleDecline}
-                        className="h-10 px-4 border border-white/10 hover:bg-white/5 text-slate-400 hover:text-white text-xs font-medium rounded-xl transition-all"
+                        className="h-10 px-4 border border-border hover:bg-foreground/5 text-slate-400 hover:text-foreground text-xs font-medium rounded-xl transition-all"
                     >
                         Denegar
                     </button>

@@ -49,19 +49,19 @@ export default function OptionsPanel({
     onSettingChange,
 }: OptionsPanelProps) {
     return (
-        <section className="w-full lg:w-85 p-6 flex flex-col gap-6 md:gap-8 bg-[#121022]/40 rounded-3xl border border-white/5 overflow-y-auto custom-scrollbar shadow-inner">
+        <section className="w-full lg:w-85 p-6 flex flex-col gap-6 md:gap-8 bg-card/40 rounded-3xl border border-white/5 overflow-y-auto custom-scrollbar shadow-inner">
             <div className="flex items-center gap-3">
                 <span className="p-2 bg-[#3b2bee]/10 rounded-lg">
                     <Settings className="text-[#3b2bee] w-5 h-5" />
                 </span>
-                <h2 className="font-bold text-xl uppercase tracking-tight text-white">Opciones</h2>
+                <h2 className="font-bold text-xl uppercase tracking-tight text-foreground">Opciones</h2>
             </div>
 
             {/* Multimedia */}
             <div className="space-y-4">
                 <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Multimedia</h3>
                 <button
-                    className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all active:scale-95 ${isBackendOnline === false || isProcessing ? 'bg-gray-600/10 text-gray-500 cursor-not-allowed border border-white/5' : 'bg-white/5 hover:bg-white/10 text-white border border-white/10'}`}
+                    className={`w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-3 transition-all active:scale-95 ${isBackendOnline === false || isProcessing ? 'bg-gray-600/10 text-gray-500 cursor-not-allowed border border-white/5' : 'bg-foreground/5 hover:bg-white/10 text-foreground border border-border'}`}
                     disabled={isBackendOnline === false || isProcessing}
                     onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
                 >
@@ -75,10 +75,10 @@ export default function OptionsPanel({
                 <div className="flex items-center justify-between">
                     <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Encuadre</h3>
                     <div className="flex gap-2">
-                        <button onClick={onReset} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-slate-300 transition-colors border border-white/5 shadow-sm active:scale-90">
+                        <button onClick={onReset} className="p-2 bg-foreground/5 rounded-lg hover:bg-white/10 text-slate-300 transition-colors border border-white/5 shadow-sm active:scale-90">
                             <RefreshCw className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => onSettingChange('cropX', 50)} className="p-2 bg-white/5 rounded-lg hover:bg-white/10 text-slate-300 transition-colors border border-white/5 shadow-sm active:scale-90">
+                        <button onClick={() => onSettingChange('cropX', 50)} className="p-2 bg-foreground/5 rounded-lg hover:bg-white/10 text-slate-300 transition-colors border border-white/5 shadow-sm active:scale-90">
                             <Minimize2 className="w-3.5 h-3.5" />
                         </button>
                     </div>
@@ -91,7 +91,7 @@ export default function OptionsPanel({
                             <span className="text-[#3b2bee] font-mono">{settings.zoom}%</span>
                         </div>
                         <input
-                            className="w-full h-2 bg-white/5 rounded-full appearance-none accent-[#3b2bee] cursor-pointer"
+                            className="w-full h-2 bg-foreground/5 rounded-full appearance-none accent-[#3b2bee] cursor-pointer"
                             type="range" min="50" max="200" value={settings.zoom}
                             disabled={isBackendOnline === false || isProcessing}
                             onChange={(e) => onSettingChange('zoom', parseInt(e.target.value))}
@@ -104,7 +104,7 @@ export default function OptionsPanel({
                             <span className="text-[#3b2bee] font-mono">{settings.rotation}°</span>
                         </div>
                         <input
-                            className="w-full h-2 bg-white/5 rounded-full appearance-none accent-[#3b2bee] cursor-pointer"
+                            className="w-full h-2 bg-foreground/5 rounded-full appearance-none accent-[#3b2bee] cursor-pointer"
                             type="range" min="-45" max="45" value={settings.rotation}
                             disabled={isBackendOnline === false || isProcessing}
                             onChange={(e) => onSettingChange('rotation', parseInt(e.target.value))}
@@ -123,7 +123,7 @@ export default function OptionsPanel({
                         { id: 'showGrid', label: 'Retícula 3x3', icon: <Maximize className="w-4 h-4" /> },
                         { id: 'autoTrack', label: 'Auto Tracking', icon: <RefreshCw className="w-4 h-4" /> }
                     ].map((toggle) => (
-                        <div key={toggle.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5">
+                        <div key={toggle.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-foreground/5 transition-colors border border-transparent hover:border-white/5">
                             <div className="flex items-center gap-3 text-xs font-semibold text-slate-400">
                                 <span className="text-[#3b2bee]/60">{toggle.icon}</span>
                                 {toggle.label}

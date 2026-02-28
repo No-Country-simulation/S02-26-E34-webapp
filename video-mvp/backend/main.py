@@ -129,15 +129,6 @@ app = FastAPI(
 
 # ==================== Middleware ====================
 
-# CORS Middleware (keep for basic CORS)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Rate Limiting Middleware
 app.add_middleware(RateLimitMiddleware)
 
@@ -145,6 +136,15 @@ app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     RequestValidationMiddleware,
     max_size=settings.MAX_FILE_SIZE
+)
+
+# CORS Middleware (MUST BE ADDED LAST TO BE OUTERMOST)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Register exception handlers

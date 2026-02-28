@@ -17,10 +17,12 @@ from http import HTTPStatus
 from api.dependencies import (
     get_current_user,
     get_user_repository,
+    get_video_repository,
     get_pagination,
     PaginationParams
 )
 from repositories.user_repository import UserRepository
+from repositories.video_repository import VideoRepository
 from schemas.user import (
     UserResponse,
     UserListResponse,
@@ -108,6 +110,18 @@ async def update_cookie_preferences(
         marketing=preferences.marketing,
         updated_at=prefs_dict["updated_at"]
     )
+
+
+@router.get("/me/stats")
+async def get_user_stats(
+    current_user: dict = Depends(get_current_user),
+    video_repo: VideoRepository = Depends(get_video_repository)
+):
+    """
+    Get current user's video statistics.
+    """
+    stats = await video_repo.get_user_statistics(current_user["_id"])
+    return stats
 
 
 # ==================== Admin Endpoints ====================
@@ -252,6 +266,82 @@ async def delete_user(
     await user_repo.delete(user_id)
     
     return {"message": "User deleted successfully"}
+
+
+@router.put("/{user_id}/approve", response_model=UserResponse)
+async def approve_user(
+    user_id: str = Path(..., description="User ID to approve"),
+    current_user: dict = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Approve pending user (Admin only).
+    """
+    if current_user.get("role") != UserRole.ADMIN.value:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Admin access required"
+        )
+        
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+        
+    await user_repo.verify_user(user_id)
+    return await user_repo.get_by_id(user_id)
+
+
+@router.put("/{user_id}/reject", response_model=UserResponse)
+async def reject_user(
+    user_id: str = Path(..., description="User ID to reject"),
+    current_user: dict = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Reject pending user (Admin only).
+    """
+    if current_user.get("role") != UserRole.ADMIN.value:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Admin access required"
+        )
+        
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+        
+    await user_repo.reject_user(user_id)
+    return await user_repo.get_by_id(user_id)
+
+
+@router.put("/{user_id}/role", response_model=UserResponse)
+async def update_user_role(
+    role: UserRole,
+    user_id: str = Path(..., description="User ID to modify role"),
+    current_user: dict = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Elevate or modify user role (Admin only).
+    """
+    if current_user.get("role") != UserRole.ADMIN.value:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Admin access required"
+        )
+        
+    if str(current_user["_id"]) == user_id:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail="Cannot change your own role"
+        )
+        
+    user = await user_repo.get_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+        
+    await user_repo.update_role(user_id, role)
+    return await user_repo.get_by_id(user_id)
 
 
 @router.get("/pending-verifications", response_model=UserListResponse)

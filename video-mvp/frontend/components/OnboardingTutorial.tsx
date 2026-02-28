@@ -67,13 +67,13 @@ const OnboardingTutorial = () => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-[#121022] rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-white/10 shadow-2xl">
-        <div className="p-8">
+      <div className="bg-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-border shadow-2xl">
+        <div className="p-5 sm:p-8">
           <div className="flex justify-between items-start mb-6">
-            <h2 className="text-2xl font-bold text-white">Guía de inicio rápido</h2>
+            <h2 className="text-2xl font-bold text-foreground">Guía de inicio rápido</h2>
             <button
               onClick={skipTutorial}
-              className="text-slate-400 hover:text-white transition-colors"
+              className="text-slate-400 hover:text-foreground transition-colors"
             >
               Saltar
             </button>
@@ -84,7 +84,7 @@ const OnboardingTutorial = () => {
           </div>
 
           <div className="mb-8 text-center">
-            <h3 className="text-xl font-semibold text-white mb-3">{steps[currentStep].title}</h3>
+            <h3 className="text-xl font-semibold text-foreground mb-3">{steps[currentStep].title}</h3>
             <p className="text-slate-400">{steps[currentStep].description}</p>
           </div>
 

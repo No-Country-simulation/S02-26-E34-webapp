@@ -5,6 +5,50 @@ export const API_BASE_URL = '/api/v1';
 export const BASE_URL = '';
 export const HEALTH_URL = `${API_BASE_URL}/health`;
 
+// Axios-like fetch wrapper
+const getToken = () => {
+  if (typeof window === 'undefined') return '';
+  try {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      return user.access_token || '';
+    }
+  } catch (e) {
+    console.error('Error parsing user from localStorage', e);
+  }
+  return '';
+};
+
+export const api = {
+  get: async (url: string) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE_URL}${url}`, {
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+      }
+    });
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    return { data };
+  },
+  patch: async (url: string, body: any) => {
+    const token = getToken();
+    const res = await fetch(`${API_BASE_URL}${url}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (!res.ok) throw new Error(res.statusText);
+    const data = await res.json();
+    return { data };
+  }
+};
+
 interface UploadResponse {
   video_id: string;
   filename: string;

@@ -3,6 +3,7 @@
 import { BarChart3, TrendingUp, Clock, Download, Users, Activity, Eye, Heart, Tag, Folder, UserCheck, Shield } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import FeedbackCollector from '@/components/FeedbackCollector';
+import { api } from '@/lib/api';
 
 // Types
 interface VideoStats {
@@ -23,6 +24,8 @@ interface UserStats {
     totalViews: number;
     totalDownloads: number;
     averageQuality: number;
+    totalDuration: number;
+    storageUsed: string;
 }
 
 export default function DashboardPage() {
@@ -30,97 +33,64 @@ export default function DashboardPage() {
     const [videos, setVideos] = useState<VideoStats[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Simulated data - in a real app, this would come from an API
     useEffect(() => {
-        // Simulate API call
-        setTimeout(() => {
-            setUserStats({
-                totalVideos: 24,
-                totalViews: 1248,
-                totalDownloads: 842,
-                averageQuality: 87.5
-            });
+        const fetchStatsAndVideos = async () => {
+            try {
+                // Fetch User Stats
+                const statsRes = await api.get('/users/me/stats');
+                const statsData = statsRes.data;
 
-            setVideos([
-                {
-                    id: '1',
-                    filename: 'video_promocional.mp4',
-                    duration: 120,
-                    views: 124,
-                    downloads: 89,
-                    qualityScore: 92,
-                    createdAt: '2024-02-10',
-                    status: 'processed',
-                    category: 'marketing',
-                    tags: ['promo', 'social']
-                },
-                {
-                    id: '2',
-                    filename: 'tutorial_producto.mp4',
-                    duration: 180,
-                    views: 89,
-                    downloads: 67,
-                    qualityScore: 88,
-                    createdAt: '2024-02-09',
-                    status: 'processed',
-                    category: 'education',
-                    tags: ['tutorial', 'product']
-                },
-                {
-                    id: '3',
-                    filename: 'evento_empresa.mp4',
-                    duration: 150,
-                    views: 234,
-                    downloads: 156,
-                    qualityScore: 95,
-                    createdAt: '2024-02-08',
-                    status: 'processed',
-                    category: 'event',
-                    tags: ['event', 'meeting']
-                },
-                {
-                    id: '4',
-                    filename: 'demo_nuevo_feature.mp4',
-                    duration: 90,
-                    views: 67,
-                    downloads: 45,
-                    qualityScore: 85,
-                    createdAt: '2024-02-07',
-                    status: 'processing',
-                    category: 'demo',
-                    tags: ['feature', 'demo']
-                },
-                {
-                    id: '5',
-                    filename: 'test_calidad.mp4',
-                    duration: 60,
-                    views: 34,
-                    downloads: 23,
-                    qualityScore: 78,
-                    createdAt: '2024-02-06',
-                    status: 'processed',
-                    category: 'testing',
-                    tags: ['test', 'quality']
-                }
-            ]);
+                setUserStats({
+                    totalVideos: statsData.total_videos || 0,
+                    totalViews: statsData.total_views || 0,
+                    totalDownloads: statsData.total_downloads || 0,
+                    averageQuality: 87.5, // Placeholder - calculating quality score requires more complex metrics
+                    totalDuration: statsData.total_duration || 0,
+                    storageUsed: statsData.storage_used || '0 MB'
+                });
 
-            setLoading(false);
-        }, 800);
+                // Fetch Recent Videos
+                const videosRes = await api.get('/videos?page=1&page_size=5');
+                const videosList = videosRes.data.videos;
+
+                const mappedVideos = videosList.map((v: any) => ({
+                    id: v._id,
+                    filename: v.metadata?.title || 'Video Sin Título',
+                    duration: v.metadata?.duration || 0,
+                    views: v.view_count || 0,
+                    downloads: 0, // Placeholder
+                    qualityScore: 90, // Placeholder
+                    createdAt: new Date(v.created_at).toISOString().split('T')[0],
+                    status: v.status.toLowerCase(),
+                    category: v.metadata?.category || 'general',
+                    tags: v.tags || []
+                }));
+
+                setVideos(mappedVideos);
+
+            } catch (error) {
+                console.error("Error fetching stats data:", error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStatsAndVideos();
     }, []);
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
+            <div className="min-h-screen bg-background flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#3b2bee]"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-[#0a0a0f]">
+        <div className="min-h-screen bg-background">
             <main className="container mx-auto px-4 py-8">
                 <div className="mb-12">
-                    <h1 className="text-3xl font-bold text-white mb-2">Estadísticas Verv.io</h1>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Estadísticas Verv.io</h1>
                     <p className="text-slate-400">Monitorea el rendimiento y uso de tus videos</p>
                 </div>
 
@@ -157,16 +127,16 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <div className="lg:col-span-2 bg-[#121022] p-6 rounded-2xl border border-white/10">
+                    <div className="lg:col-span-2 bg-card p-6 rounded-2xl border border-border">
                         <div className="flex items-center justify-between mb-6">
-                            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
                                 <BarChart3 className="w-5 h-5 text-[#3b2bee]" />
                                 Estadísticas de Videos
                             </h2>
                             <div className="flex gap-2">
-                                <button className="px-3 py-1 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-300 hover:bg-white/10">7 días</button>
+                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-slate-300 hover:bg-white/10">7 días</button>
                                 <button className="px-3 py-1 text-xs bg-[#3b2bee]/20 border border-[#3b2bee]/30 rounded-lg text-[#3b2bee]">30 días</button>
-                                <button className="px-3 py-1 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-300 hover:bg-white/10">90 días</button>
+                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-slate-300 hover:bg-white/10">90 días</button>
                             </div>
                         </div>
                         <div className="h-80 flex items-center justify-center text-slate-500">
@@ -178,16 +148,16 @@ export default function DashboardPage() {
                         </div>
                     </div>
 
-                    <div className="bg-[#121022] p-6 rounded-2xl border border-white/10">
-                        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <div className="bg-card p-6 rounded-2xl border border-border">
+                        <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
                             <TrendingUp className="w-5 h-5 text-[#3b2bee]" />
                             Últimos Videos
                         </h2>
                         <div className="space-y-4">
                             {videos.map((video) => (
-                                <div key={video.id} className="flex items-center justify-between border-b border-white/10 pb-4 last:border-0 last:pb-0">
+                                <div key={video.id} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-white truncate">{video.filename}</p>
+                                        <p className="font-medium text-foreground truncate">{video.filename}</p>
                                         <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
                                             <span>{Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, '0')}</span>
                                             <span>{video.views} vistas</span>
@@ -196,8 +166,8 @@ export default function DashboardPage() {
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <span className={`px-2 py-1 rounded-full text-xs ${video.status === 'processed'
-                                                ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                                                : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                             }`}>
                                             {video.status === 'processed' ? 'Completado' : 'Procesando'}
                                         </span>
@@ -211,33 +181,33 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="mt-8 bg-[#121022] p-6 rounded-2xl border border-white/10">
-                    <h2 className="text-xl font-bold text-white mb-6">Categorías y Etiquetas</h2>
+                <div className="mt-8 bg-card p-6 rounded-2xl border border-border">
+                    <h2 className="text-xl font-bold text-foreground mb-6">Categorías y Etiquetas</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-[#0a0a0f]/50 p-4 rounded-xl border border-white/10">
+                        <div className="bg-background/50 p-4 rounded-xl border border-border">
                             <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> Categorías Populares
                             </h3>
                             <div className="space-y-2">
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Marketing</span>
-                                    <span className="text-white">8 videos</span>
+                                    <span className="text-foreground">8 videos</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Educación</span>
-                                    <span className="text-white">6 videos</span>
+                                    <span className="text-foreground">6 videos</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Evento</span>
-                                    <span className="text-white">5 videos</span>
+                                    <span className="text-foreground">5 videos</span>
                                 </div>
                                 <div className="flex justify-between">
                                     <span className="text-slate-400">Demo</span>
-                                    <span className="text-white">3 videos</span>
+                                    <span className="text-foreground">3 videos</span>
                                 </div>
                             </div>
                         </div>
-                        <div className="bg-[#0a0a0f]/50 p-4 rounded-xl border border-white/10">
+                        <div className="bg-background/50 p-4 rounded-xl border border-border">
                             <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> Etiquetas Comunes
                             </h3>
@@ -249,7 +219,7 @@ export default function DashboardPage() {
                                 ))}
                             </div>
                         </div>
-                        <div className="bg-[#0a0a0f]/50 p-4 rounded-xl border border-white/10">
+                        <div className="bg-background/50 p-4 rounded-xl border border-border">
                             <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
                                 <Shield className="w-4 h-4" /> Calidad de Videos
                             </h3>
@@ -257,7 +227,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-slate-400">Excelente (90-100%)</span>
-                                        <span className="text-white">12</span>
+                                        <span className="text-foreground">12</span>
                                     </div>
                                     <div className="w-full bg-slate-700 rounded-full h-2">
                                         <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '50%' }}></div>
@@ -266,7 +236,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-slate-400">Buena (70-89%)</span>
-                                        <span className="text-white">8</span>
+                                        <span className="text-foreground">8</span>
                                     </div>
                                     <div className="w-full bg-slate-700 rounded-full h-2">
                                         <div className="bg-amber-500 h-2 rounded-full" style={{ width: '33%' }}></div>
@@ -275,7 +245,7 @@ export default function DashboardPage() {
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
                                         <span className="text-slate-400">Regular (&lt;70%)</span>
-                                        <span className="text-white">4</span>
+                                        <span className="text-foreground">4</span>
                                     </div>
                                     <div className="w-full bg-slate-700 rounded-full h-2">
                                         <div className="bg-rose-500 h-2 rounded-full" style={{ width: '17%' }}></div>
@@ -300,11 +270,11 @@ const StatCard = ({ title, value, change, icon, color }: {
     color: string;
 }) => {
     return (
-        <div className="bg-[#121022] p-5 rounded-2xl border border-white/10 hover:border-white/20 transition-colors">
+        <div className="bg-card p-5 rounded-2xl border border-border hover:border-white/20 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
                     <p className="text-slate-400 text-sm">{title}</p>
-                    <p className="text-2xl font-bold text-white mt-1">{value}</p>
+                    <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
                 </div>
                 <div className={`p-3 rounded-lg bg-linear-to-br ${color}`}>
                     {icon}

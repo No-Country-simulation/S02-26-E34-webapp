@@ -10,10 +10,13 @@ class PyObjectId(ObjectId):
     @classmethod
     def __get_pydantic_core_schema__(cls, source_type, handler):
         from pydantic_core import core_schema
-        return core_schema.no_info_after_validator_function(
-            cls.validate,
-            core_schema.str_schema(),
-        )
+        return core_schema.union_schema([
+            core_schema.is_instance_schema(ObjectId),
+            core_schema.chain_schema([
+                core_schema.str_schema(),
+                core_schema.no_info_plain_validator_function(cls.validate)
+            ])
+        ])
 
     @classmethod
     def validate(cls, v):
@@ -44,9 +47,11 @@ class CookiePreferences(BaseModel):
 # Modelo para el documento de usuario en MongoDB
 class UserDocument(BaseModel):
     id: PyObjectId = Field(default_factory=PyObjectId, alias="_id")
-    google_id: str = Field(..., unique=True)  # ID único de Google OAuth
+    google_id: Optional[str] = Field(default=None, unique=True, sparse=True)  # ID único de Google OAuth (opcional)
     email: str = Field(..., unique=True)
     name: str
+    last_name: Optional[str] = None  # Apellido (opcional para auth de Google, requerido para registro manual)
+    hashed_password: Optional[str] = None  # Contraseña encriptada para login manual
     picture: Optional[str] = None  # URL de la imagen de perfil de Google
     role: UserRole = UserRole.USER
     verification_status: UserVerificationStatus = UserVerificationStatus.PENDING
@@ -64,9 +69,11 @@ class UserDocument(BaseModel):
 
 # Modelos para la API
 class UserCreate(BaseModel):
-    google_id: str
     email: str
     name: str
+    last_name: Optional[str] = None
+    password: Optional[str] = None
+    google_id: Optional[str] = None
     picture: Optional[str] = None
 
 
@@ -79,6 +86,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    last_name: Optional[str] = None
     picture: Optional[str]
     role: UserRole
     verification_status: UserVerificationStatus
@@ -94,6 +102,7 @@ class UserLoginResponse(BaseModel):
     user_id: str
     email: str
     name: str
+    last_name: Optional[str] = None
     role: UserRole
     verification_status: UserVerificationStatus
     access_token: str

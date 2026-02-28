@@ -23,7 +23,7 @@ export default function Home() {
 
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] overflow-x-hidden">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       {/* Tutorial de onboarding */}
       {showTutorial && <OnboardingTutorial />}
 
@@ -35,7 +35,7 @@ export default function Home() {
             <span className="w-2 h-2 rounded-full bg-[#3b2bee] animate-pulse"></span>
             <span className="text-[10px] md:text-xs font-semibold uppercase tracking-widest text-[#3b2bee]">Nuevo: Ajuste de marco en tiempo real</span>
           </div>
-          <h1 className="text-4xl md:text-7xl font-bold mb-6 leading-tight tracking-tight text-white px-2">
+          <h1 className="text-4xl md:text-7xl font-bold mb-6 leading-tight tracking-tight text-foreground px-2">
             Tu historia merece el foco.<br />
             <span className="text-transparent bg-clip-text bg-linear-to-r from-purple-500 to-blue-400">En vertical, sin perder lo esencial.</span>
           </h1>
@@ -51,14 +51,14 @@ export default function Home() {
             </button>
             <button
               onClick={() => setIsDemoOpen(true)}
-              className="w-full sm:w-auto bg-[#121022] border border-white/10 hover:border-[#3b2bee]/50 text-white px-8 py-4 rounded-full text-lg font-semibold transition-all"
+              className="w-full sm:w-auto bg-card border border-border hover:border-[#3b2bee]/50 text-foreground px-8 py-4 rounded-full text-lg font-semibold transition-all"
             >
               Ver la diferencia
             </button>
           </div>
 
           {/* Preview Mockup */}
-          <div className="relative max-w-4xl mx-auto rounded-xl overflow-hidden border border-[#3b2bee]/30 bg-[#121022] p-1.5 md:p-4 group shadow-2xl">
+          <div className="relative max-w-4xl mx-auto rounded-xl overflow-hidden border border-[#3b2bee]/30 bg-card p-1.5 md:p-4 group shadow-2xl">
             <div className="relative aspect-video rounded-lg overflow-hidden bg-black/40">
               <img
                 className="w-full h-full object-cover opacity-60"
@@ -70,7 +70,7 @@ export default function Home() {
                   <div className="absolute top-2 right-2 bg-[#3b2bee] text-white text-[8px] md:text-[10px] font-bold px-2 py-1 rounded-full uppercase">Vista previa 9:16</div>
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-md scale-75 md:scale-100">
-                      <Bolt className="text-white w-6 h-6 animate-pulse" />
+                      <Bolt className="text-foreground w-6 h-6 animate-pulse" />
                     </div>
                   </div>
                 </div>
@@ -84,23 +84,23 @@ export default function Home() {
       <section id="before-after" className="py-16 md:py-20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-white">Lo que importa, siempre al centro</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground">Lo que importa, siempre al centro</h2>
             <p className="text-sm md:text-base text-slate-400 max-w-2xl mx-auto">
               Tu energia y tu mensaje no se pierden. Verv.io los mantiene vivos en cada short.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
-            <div className="bg-[#121022] border border-white/10 rounded-2xl p-5 md:p-6">
+            <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Antes</span>
                 <span className="text-xs font-semibold text-rose-400">Se pierde el momento</span>
               </div>
-              <div className="aspect-video rounded-xl bg-linear-to-br from-white/5 via-white/5 to-white/10 border border-white/10 flex items-center justify-center text-slate-500 text-xs">
+              <div className="aspect-video rounded-xl bg-linear-to-br from-white/5 via-white/5 to-white/10 border border-border flex items-center justify-center text-slate-500 text-xs">
                 Recorte manual 9:16
               </div>
               <p className="mt-4 text-sm text-slate-400">La emocion se corta y el foco se va.</p>
             </div>
-            <div className="bg-[#121022] border border-white/10 rounded-2xl p-5 md:p-6">
+            <div className="bg-card border border-border rounded-2xl p-5 md:p-6">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs uppercase tracking-widest text-slate-500 font-semibold">Despues</span>
                 <span className="text-xs font-semibold text-emerald-400">La historia brilla</span>
@@ -118,17 +118,17 @@ export default function Home() {
       <section id="converter-section" className="py-12 md:py-16 px-6">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-10 md:mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-white">Convierte sin perder el alma</h2>
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 text-foreground">Convierte sin perder el alma</h2>
             <p className="text-sm md:text-base text-slate-400">De 16:9 a 9:16 con el mismo impacto que sentiste al grabarlo.</p>
           </div>
 
-          <div className="bg-[#121022] p-6 md:p-8 rounded-2xl border border-white/10 shadow-lg">
+          <div className="bg-card p-6 md:p-8 rounded-2xl border border-border shadow-lg">
             <div className="text-center">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#3b2bee]/10 border border-[#3b2bee]/20 mb-6">
                 <span className="w-2 h-2 rounded-full bg-[#3b2bee] animate-pulse"></span>
                 <span className="text-[10px] md:text-xs font-semibold uppercase tracking-widest text-[#3b2bee]">Funcionalidad disponible en el editor</span>
               </div>
-              <h3 className="text-xl md:text-2xl font-bold mb-4 text-white">Accede al Editor de Video</h3>
+              <h3 className="text-xl md:text-2xl font-bold mb-4 text-foreground">Accede al Editor de Video</h3>
               <p className="text-sm md:text-base text-slate-400 mb-8 max-w-lg mx-auto leading-relaxed">
                 Convierte un video largo en varios shorts que se sienten vivos, listos para compartir.
               </p>
@@ -141,7 +141,7 @@ export default function Home() {
                 </a>
                 <a
                   href="/auth"
-                  className="bg-white/5 hover:bg-white/10 text-white px-6 py-3.5 rounded-full font-bold transition-all border border-white/10 text-center"
+                  className="bg-foreground/5 hover:bg-white/10 text-foreground px-6 py-3.5 rounded-full font-bold transition-all border border-border text-center"
                 >
                   Crear Cuenta
                 </a>
@@ -152,10 +152,10 @@ export default function Home() {
       </section>
 
       {/* Steps Section */}
-      <section className="py-20 md:py-24 px-6 bg-[#121022]/30">
+      <section className="py-20 md:py-24 px-6 bg-card/30">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12 md:mb-16">
-            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-white">Como funciona</h2>
+            <h2 className="text-3xl md:text-5xl font-bold mb-4 text-foreground">Como funciona</h2>
             <p className="text-sm md:text-base text-slate-400 max-w-xl mx-auto">Tres pasos simples para que tu contenido se sienta grande en vertical.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
@@ -204,16 +204,16 @@ export default function Home() {
       <FeedbackCollector />
 
       {isDemoOpen && (
-        <div className="fixed inset-0 bg-[#0a0a0f]/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="relative w-full max-w-4xl bg-[#121022] border border-white/10 rounded-2xl p-4 md:p-6 shadow-[0_0_40px_rgba(0,0,0,0.4)]">
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="relative w-full max-w-4xl bg-card border border-border rounded-2xl p-4 md:p-6 shadow-[0_0_40px_rgba(0,0,0,0.4)]">
             <button
               onClick={() => setIsDemoOpen(false)}
-              className="absolute top-3 right-3 text-slate-400 hover:text-white transition-colors"
+              className="absolute top-3 right-3 text-slate-400 hover:text-foreground transition-colors"
               aria-label="Cerrar demo"
             >
               <span className="text-2xl leading-none">×</span>
             </button>
-            <div className="aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/40">
+            <div className="aspect-video w-full overflow-hidden rounded-xl border border-border bg-black/40">
               <video className="w-full h-full" controls autoPlay playsInline>
                 <source src="/video-demo.mp4" type="video/mp4" />
                 Tu navegador no soporta el video.
@@ -230,7 +230,7 @@ export default function Home() {
 const StatItem = ({ val, label }: { val: string, label: string }) => (
   <div>
     <div className="text-4xl font-bold mb-1">{val}</div>
-    <div className="text-white/70 text-sm font-medium">{label}</div>
+    <div className="text-foreground/70 text-sm font-medium">{label}</div>
   </div>
 );
 

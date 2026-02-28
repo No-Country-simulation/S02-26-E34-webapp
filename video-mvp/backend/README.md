@@ -1,40 +1,70 @@
-# Backend del Editor de Video
+# Verv.io - Video Processor Backend (FastAPI)
 
-Este es el backend del proyecto de edición de video que convierte videos horizontales (16:9) en verticales (9:16) optimizados para redes sociales como TikTok, Instagram Reels y YouTube Shorts.
+El backend de Verv.io es el motor central que procesa videos, detecta sujetos mediante IA y genera las versiones verticales listas para redes sociales.
 
-## Características
+## 🚀 Características del Backend
 
-- API RESTful construida con FastAPI
-- Procesamiento de videos con FFmpeg
-- Detección de rostros con MediaPipe
-- Generación de subtítulos con Whisper
-- Interfaz de usuario responsive
+- **Procesamiento de Video**: Gestión de colas y procesamiento asíncrono.
+- **IA de Detección**:
+  - Detección de rostros y seguimiento con **MediaPipe**.
+  - Detección de objetos y sujetos relevantes con **OpenCV**.
+- **Generación de Subtítulos**: Integración con **OpenAI Whisper** para transcripción automática.
+- **Branding Dinámico**: Generación de marcos, logos y elementos visuales con **FFmpeg**.
+- **API RESTful**: Endpoints modulares para gestión de videos, usuarios y estadísticas.
+- **Autenticación**: Sistema robusto con JWT y Google OAuth2.
+- **Rate Limiting**: Protección contra abusos mediante **Redis**.
 
-## Instalación
+## 🛠️ Stack Tecnológico
 
-1. Asegúrate de tener Python 3.10 o superior instalado
-2. Instala las dependencias con `pip install -r requirements.txt`
-3. Configura las variables de entorno en un archivo `.env`
-4. Optimización de caché para `uv` (opcional pero recomendado si trabajas en múltiples discos):
+- **Lenguaje**: Python 3.10+
+- **Framework API**: FastAPI
+- **Base de Datos**: MongoDB (Motor async)
+- **Caché/Rate Limit**: Redis
+- **Procesamiento Gráfico**: FFmpeg-python, OpenCV, Numpy, Pillow
+- **IA/ML**: MediaPipe, OpenAI Whisper
+- **Tareas Asíncronas**: Celery
+- **Validación**: Pydantic v2
+
+## 📦 Instalación y Configuración
+
+1. Asegúrate de tener **Python 3.10+** y **FFmpeg** instalados en el sistema.
+
+2. Crea un entorno virtual y actívalo:
    ```bash
-   export UV_CACHE_DIR="/path/to/disk/.uv_cache"
+   python -m venv .venv
+   source .venv/bin/activate  # En Windows: .venv\Scripts\activate
    ```
-5. Inicia el servidor con `python main.py`
 
-## Variables de Entorno
+3. Instala las dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-- `MONGODB_URL`: URL de conexión a MongoDB
-- `MONGODB_DATABASE`: Nombre de la base de datos
-- `TMP_DIR`: Directorio para archivos temporales
-- `MAX_FILE_SIZE`: Tamaño máximo de archivo en bytes
-- `MEDIAPIPE_MIN_DETECTION_CONFIDENCE`: Confianza mínima para detección de rostros
-- `WHISPER_MODEL_SIZE`: Tamaño del modelo Whisper
-- `HOST`: Host para el servidor (ej. 0.0.0.0)
-- `PORT`: Puerto para el servidor (ej. 8001)
+4. Configura las variables de entorno:
+   ```bash
+   cp .env.example .env
+   # Edita .env con tus claves de MongoDB, Redis, etc.
+   ```
 
-## Endpoints
+5. Inicia el servidor:
+   ```bash
+   python main.py
+   ```
 
-- `POST /upload/`: Subir un video para procesamiento
-- `GET /status/{video_id}`: Verificar el estado de procesamiento
-- `GET /download/{video_id}`: Descargar el video procesado
-- `GET /health`: Verificar el estado del servicio
+## 🎥 Flujo de Procesamiento
+
+1. **Subida**: El usuario sube un video MP4.
+2. **Análisis**: MediaPipe detecta rostros y sujetos en cada frame clave.
+3. **Cálculo de Marco**: Se determina el área vertical (9:16) óptima para no perder lo esencial.
+4. **Procesado**: FFmpeg aplica el recorte, escala y opcionalmente añade subtítulos y branding.
+5. **Exportación**: El archivo final se almacena y se notifica al usuario.
+
+## 📁 Endpoints Principales
+
+- `POST /api/v1/endpoints/upload/`: Subida de videos.
+- `GET /api/v1/endpoints/video/{id}`: Obtener detalles y estado del video.
+- `GET /api/v1/endpoints/stats/`: Métricas globales del sistema.
+- `GET /api/v1/endpoints/user/profile`: Gestión de datos de usuario.
+
+---
+Verv.io Backend - Potenciando el contenido vertical con IA.

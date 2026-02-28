@@ -161,8 +161,13 @@ class UserRepository:
         try:
             update_data["updated_at"] = datetime.utcnow()
             
+            try:
+                query_id = ObjectId(user_id)
+            except (InvalidId, TypeError):
+                query_id = user_id
+                
             result = await self.collection.update_one(
-                {"_id": user_id},
+                {"_id": query_id},
                 {"$set": update_data}
             )
             return result.modified_count > 0
@@ -230,8 +235,19 @@ class UserRepository:
             True if deleted, False if not found
         """
         try:
-            result = await self.collection.delete_one({"_id": user_id})
-            return result.deleted_count > 0
+            try:
+                query_id = ObjectId(user_id)
+            except (InvalidId, TypeError):
+                query_id = user_id
+                
+            result = await self.collection.update_one(
+                {"_id": query_id},
+                {"$set": {
+                    "is_deleted": True,
+                    "deleted_at": datetime.utcnow()
+                }}
+            )
+            return result.modified_count > 0
         except Exception as e:
             logger.error(f"Error deleting user {user_id}: {e}")
             return False
@@ -281,7 +297,7 @@ class UserRepository:
             List of user documents
         """
         try:
-            query = {}
+            query = {"is_deleted": {"$ne": True}}
             
             if role:
                 query["role"] = role.value
@@ -367,6 +383,7 @@ class UserRepository:
         """
         try:
             search_query = {
+                "is_deleted": {"$ne": True},
                 "$or": [
                     {"name": {"$regex": query, "$options": "i"}},
                     {"email": {"$regex": query, "$options": "i"}}

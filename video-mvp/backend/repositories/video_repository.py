@@ -403,3 +403,52 @@ class VideoRepository:
         except Exception as e:
             logger.error(f"Error getting statistics: {e}")
             return {"total": 0, "by_status": {}}
+
+    async def get_user_statistics(self, user_id: str) -> Dict[str, Any]:
+        """
+        Get statistics for a specific user.
+        
+        Returns:
+            Dictionary with total videos and total duration.
+        """
+        try:
+            pipeline = [
+                {"$match": {"user_id": str(user_id), "status": {"$ne": VideoStatus.DELETED.value}}},
+                {
+                    "$group": {
+                        "_id": None,
+                        "total_videos": {"$sum": 1},
+                        "total_duration": {"$sum": {"$ifNull": ["$metadata.duration", 0]}}
+                    }
+                }
+            ]
+            
+            result = await self.collection.aggregate(pipeline).to_list(length=1)
+            
+            if not result:
+                return {
+                    "total_videos": 0,
+                    "total_views": 0,
+                    "total_downloads": 0,
+                    "total_duration": 0,
+                    "storage_used": "0 MB"
+                }
+                
+            stats = result[0]
+            
+            return {
+                "total_videos": stats.get("total_videos", 0),
+                "total_views": 0, # Placeholder, will implement views later if needed
+                "total_downloads": 0, # Placeholder
+                "total_duration": stats.get("total_duration", 0),
+                "storage_used": "150 MB" # Simulated storage, in a real env sum file sizes
+            }
+        except Exception as e:
+            logger.error(f"Error getting user video statistics for {user_id}: {e}")
+            return {
+                "total_videos": 0,
+                "total_views": 0,
+                "total_downloads": 0,
+                "total_duration": 0,
+                "storage_used": "0 MB"
+            }

@@ -24,11 +24,14 @@ from models.user import (
     UserVerificationStatus,
     UserDocument,
     CookiePreferences,
-    CookiePreferencesResponse
+    CookiePreferencesResponse,
+    UserCreate
 )
 from repositories.user_repository import UserRepository
 from services.google_auth import GoogleAuthService
 from api.dependencies import get_user_repository
+from utils.security import get_password_hash, verify_password
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +81,129 @@ async def get_verified_user(
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail="Could not validate credentials"
+        )
+
+
+@router.post("/register", response_model=UserLoginResponse)
+async def register_user(
+    user_data: UserCreate,
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Register a new user with email and password.
+    """
+    try:
+        # Check if email is already registered
+        if await user_repo.email_exists(user_data.email):
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Email is already registered"
+            )
+
+        if not user_data.password:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="Password is required for manual registration"
+            )
+
+        # Hash the password
+        hashed_password = get_password_hash(user_data.password)
+
+        new_user_dict = {
+            "email": user_data.email,
+            "name": user_data.name,
+            "last_name": user_data.last_name,
+            "hashed_password": hashed_password,
+            "verification_status": UserVerificationStatus.PENDING.value
+        }
+
+        user_id = await user_repo.create(new_user_dict)
+
+        # Retrieve created user
+        user_doc_dict = await user_repo.get_by_id(user_id)
+        user = UserDocument(**user_doc_dict)
+
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail="Registration successful. Your account is pending verification by an administrator."
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error registering user: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Registration error: {str(e)}"
+        )
+
+
+@router.post("/login", response_model=UserLoginResponse)
+async def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Authenticate with email and password.
+    """
+    try:
+        user_dict = await user_repo.get_by_email(form_data.username)
+        if not user_dict:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+
+        user = UserDocument(**user_dict)
+
+        # Check if user has a password (might be google only)
+        if not user.hashed_password:
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="This account uses Google Login. Please sign in with Google."
+            )
+
+        # Verify password
+        if not verify_password(form_data.password, user.hashed_password):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+
+        # Check verification status
+        if user.verification_status == UserVerificationStatus.PENDING:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="Account pending verification by an administrator."
+            )
+        elif user.verification_status == UserVerificationStatus.REJECTED:
+            raise HTTPException(
+                status_code=HTTPStatus.FORBIDDEN,
+                detail="Your account has been rejected by an administrator."
+            )
+
+        # Create access token
+        access_token = GoogleAuthService.create_access_token(
+            data={"sub": str(user.id), "email": user.email}
+        )
+
+        return UserLoginResponse(
+            user_id=str(user.id),
+            email=user.email,
+            name=user.name,
+            last_name=user.last_name,
+            role=user.role,
+            verification_status=user.verification_status,
+            access_token=access_token
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during login: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Authentication error: {str(e)}"
         )
 
 
@@ -139,6 +265,7 @@ async def google_login(request: Request):
             user_id=str(user.id),
             email=user.email,
             name=user.name,
+            last_name=user.last_name,
             role=user.role,
             verification_status=user.verification_status,
             access_token=access_token
@@ -213,6 +340,7 @@ async def get_current_user(
             user_id=str(user_obj.id),
             email=user_obj.email,
             name=user_obj.name,
+            last_name=user_obj.last_name,
             role=user_obj.role,
             verification_status=user_obj.verification_status,
             access_token=access_token
