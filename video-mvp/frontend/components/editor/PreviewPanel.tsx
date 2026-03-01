@@ -1,6 +1,6 @@
 'use client';
 
-import { Smartphone, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download } from 'lucide-react';
 
 interface Settings {
     zoom: number;
@@ -17,11 +17,31 @@ interface PreviewPanelProps {
     videoUrl: string | null;
     convertedUrl: string | null;
     settings: Settings;
+    onConvert: () => void;
+    isProcessing: boolean;
+    progress: number;
+    videoUrlExist: boolean;
+    isBackendOnline: boolean | null;
+    socialConnections: {
+        tiktok: { connected: boolean };
+        instagram: { connected: boolean };
+        youtube: { connected: boolean };
+    };
 }
 
-export default function PreviewPanel({ videoUrl, convertedUrl, settings }: PreviewPanelProps) {
+export default function PreviewPanel({
+    videoUrl,
+    convertedUrl,
+    settings,
+    onConvert,
+    isProcessing,
+    progress,
+    videoUrlExist,
+    isBackendOnline,
+    socialConnections
+}: PreviewPanelProps) {
     return (
-        <section className="w-full lg:w-90 p-4 md:p-6 flex flex-col gap-6 bg-slate-950/20 rounded-2xl border border-white/5">
+        <section className="w-full p-8 flex flex-col gap-10 bg-[#0F0F15] rounded-[2.5rem] border border-white/5 h-full shadow-2xl">
             <div className="flex items-center gap-3">
                 <span className="p-2 bg-[#3b2bee]/10 rounded-lg">
                     <Smartphone className="text-[#3b2bee] w-5 h-5" />
@@ -55,8 +75,11 @@ export default function PreviewPanel({ videoUrl, convertedUrl, settings }: Previ
                                 />
                             </div>
                         ) : (
-                            <div className="w-full h-full flex items-center justify-center p-6 text-center">
-                                <span className="text-slate-600 text-[10px] font-bold uppercase tracking-[0.2em] leading-relaxed">
+                            <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center gap-4">
+                                <div className="p-3 bg-white/5 rounded-full opacity-20">
+                                    <Smartphone className="w-8 h-8 text-white" />
+                                </div>
+                                <span className="text-slate-600 text-[9px] font-black uppercase tracking-[0.2em] leading-relaxed max-w-30">
                                     Esperando contenido multimedia
                                 </span>
                             </div>
@@ -79,6 +102,62 @@ export default function PreviewPanel({ videoUrl, convertedUrl, settings }: Previ
                         )}
                     </div>
                 </div>
+            </div>
+
+            {/* Export Section */}
+            <div className="flex flex-col gap-6">
+                <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-600">Exportar a Redes</h3>
+
+                <div className="space-y-3">
+                    {/* TikTok, Instagram, YouTube rows */}
+                    {[
+                        { id: 'tiktok', label: 'TikTok', icon: <Share2 className="w-4 h-4" /> },
+                        { id: 'instagram', label: 'Instagram', icon: <Heart className="w-4 h-4" /> },
+                        { id: 'youtube', label: 'YouTube', icon: <MessageCircle className="w-4 h-4" /> },
+                    ].map((platform) => {
+                        const isConnected = socialConnections[platform.id as keyof typeof socialConnections]?.connected;
+                        const canGenerate = videoUrlExist && isConnected && isBackendOnline !== false;
+
+                        return (
+                            <div key={platform.id} className={`flex items-center justify-between p-4 bg-[#0F0F15] rounded-2xl border border-white/5 group transition-all ${!canGenerate ? 'opacity-40 grayscale' : 'hover:bg-[#12121A]'}`}>
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-2 bg-[#050505] rounded-xl transition-colors ${canGenerate ? 'text-slate-400 group-hover:text-white' : 'text-slate-600'}`}>
+                                        {platform.icon}
+                                    </div>
+                                    <div className="flex flex-col">
+                                        <span className={`text-xs font-bold transition-colors ${canGenerate ? 'text-slate-300 group-hover:text-white' : 'text-slate-600'}`}>
+                                            {platform.label}
+                                        </span>
+                                        {!isConnected && (
+                                            <span className="text-[8px] text-red-500/60 font-medium uppercase tracking-tighter">Desconectado</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <button
+                                    disabled={!canGenerate}
+                                    className={`px-4 py-1.5 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${canGenerate
+                                        ? 'bg-[#3b2bee]/10 hover:bg-[#3b2bee] text-[#3b2bee] hover:text-white active:scale-95'
+                                        : 'bg-white/5 text-slate-600 cursor-not-allowed'
+                                        }`}
+                                >
+                                    Generar
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                <button
+                    onClick={onConvert}
+                    disabled={isProcessing || !videoUrlExist || isBackendOnline === false}
+                    className={`w-full py-5 rounded-3xl font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-4 transition-all active:scale-[0.98] mt-4 ${isProcessing || !videoUrlExist || isBackendOnline === false ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5' : 'bg-[#3b2bee] text-white shadow-[0_20px_40px_rgba(59,43,238,0.3)] hover:shadow-[0_20px_50px_rgba(59,43,238,0.5)] active:shadow-inner'}`}
+                >
+                    {isProcessing ? (
+                        <><RefreshCw className="w-5 h-5 animate-spin" /> {progress}%</>
+                    ) : (
+                        <><Download className="w-5 h-5" /> Descargar</>
+                    )}
+                </button>
             </div>
         </section>
     );

@@ -39,6 +39,11 @@ export default function ImprovedEditorPage() {
     showGrid: true,
     autoTrack: false
   });
+  const [socialConnections, setSocialConnections] = useState({
+    tiktok: { connected: false },
+    instagram: { connected: false },
+    youtube: { connected: false }
+  });
   const [statusMessage, setStatusMessage] = useState<string>('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -181,42 +186,100 @@ export default function ImprovedEditorPage() {
     }
   }, [isBackendOnline, handleReset]);
 
+  useEffect(() => {
+    const fetchSocialConnections = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/users/me`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.social_connections) {
+            setSocialConnections(data.social_connections);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching social connections:", error);
+      }
+    };
+    if (isBackendOnline) {
+      fetchSocialConnections();
+    }
+  }, [isBackendOnline]);
+
   const handleSettingChange = (setting: keyof typeof settings, value: any) => {
     setSettings(prev => ({ ...prev, [setting]: value }));
   };
 
   return (
-    <div className="min-h-[calc(100vh-64px)] flex flex-col bg-background py-4 md:py-8 overflow-x-hidden">
-      <main className="flex-1 max-w-[95%] xl:max-w-[85%] w-full mx-auto flex flex-col lg:flex-row gap-6 min-h-175 px-4 md:px-0">
+    <div className="min-h-screen flex flex-col bg-[#050505] text-white overflow-x-hidden font-sans">
+      <main className="flex-1 flex flex-col lg:flex-row gap-8 p-8 max-w-400 mx-auto w-full">
+        {/* Left Column: Editor, Options, Timeline */}
+        <div className="flex-1 flex flex-col gap-8 min-w-0">
 
-        <SourceFrame
-          videoUrl={videoUrl}
-          isBackendOnline={isBackendOnline}
-          settings={settings}
-          videoRef={videoRef}
-          getRootProps={getRootProps}
-          getInputProps={getInputProps}
-          isDragActive={isDragActive}
-        />
+          {/* Section 1: Source Frame */}
+          <SourceFrame
+            videoUrl={videoUrl}
+            isBackendOnline={isBackendOnline}
+            settings={settings}
+            videoRef={videoRef}
+            getRootProps={getRootProps}
+            getInputProps={getInputProps}
+            isDragActive={isDragActive}
+          />
 
-        <OptionsPanel
-          videoUrl={videoUrl}
-          isBackendOnline={isBackendOnline}
-          isProcessing={isProcessing}
-          progress={progress}
-          settings={settings}
-          options={options}
-          onConvert={handleConvert}
-          onReset={handleReset}
-          onSettingChange={handleSettingChange}
-        />
+          {/* Section 2: Options Panel */}
+          <OptionsPanel
+            videoUrl={videoUrl}
+            isBackendOnline={isBackendOnline}
+            isProcessing={isProcessing}
+            progress={progress}
+            settings={settings}
+            options={options}
+            onConvert={handleConvert}
+            onReset={handleReset}
+            onSettingChange={handleSettingChange}
+          />
 
-        <PreviewPanel
-          videoUrl={videoUrl}
-          convertedUrl={convertedUrl}
-          settings={settings}
-        />
+          {/* Section 3: Timeline Placeholder */}
+          <section className="p-6 bg-[#0F0F15] rounded-3xl border border-white/5 flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-1.5 bg-[#3b2bee]/20 rounded-md">
+                  <svg className="w-4 h-4 text-[#3b2bee]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-sm font-black uppercase tracking-widest">Línea de Tiempo</h2>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                00:00:00 / 00:00:15
+              </div>
+            </div>
+            <div className="h-32 bg-black/40 rounded-2xl border border-white/5 relative overflow-hidden">
+              <div className="absolute top-0 left-1/4 bottom-0 w-px bg-[#3b2bee] shadow-[0_0_10px_#3b2bee] z-10">
+                <div className="w-2 h-2 rounded-full bg-[#3b2bee] -ml-1 -mt-1"></div>
+              </div>
+              {/* Timeline Grid Background */}
+              <div className="absolute inset-0 opacity-10"
+                style={{ backgroundImage: 'linear-gradient(90deg, #333 1px, transparent 1px)', backgroundSize: '40px 100%' }}>
+              </div>
+            </div>
+          </section>
+        </div>
 
+        {/* Right Column: Preview & Export */}
+        <div className="w-full lg:w-105 shrink-0">
+          <PreviewPanel
+            videoUrl={videoUrl}
+            convertedUrl={convertedUrl}
+            settings={settings}
+            onConvert={handleConvert}
+            isProcessing={isProcessing}
+            progress={progress}
+            videoUrlExist={!!videoUrl}
+            isBackendOnline={isBackendOnline}
+            socialConnections={socialConnections}
+          />
+        </div>
       </main>
 
       <FeedbackCollector />

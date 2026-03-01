@@ -99,12 +99,14 @@ async def get_current_user_id(
         return user_id
         
     except jwt.ExpiredSignatureError:
+        logger.error("Token expired")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token expired",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.error(f"Invalid token: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
@@ -128,9 +130,34 @@ async def get_current_user(
     user = await user_repo.get_by_id(user_id)
     
     if not user:
+        logger.error(f"User not found for ID: {user_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
+        )
+    
+    return user
+
+
+async def get_verified_user(
+    user: dict = Depends(get_current_user)
+) -> dict:
+    """
+    Get current user only if they are verified.
+    
+    Usage:
+        user = Depends(get_verified_user)
+        
+    Raises:
+        HTTPException: If account is not verified
+    """
+    from models.user import UserVerificationStatus
+    
+    if user.get("verification_status") != UserVerificationStatus.VERIFIED:
+        logger.warning(f"User {user.get('email')} attempted access but is not verified")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account not verified"
         )
     
     return user

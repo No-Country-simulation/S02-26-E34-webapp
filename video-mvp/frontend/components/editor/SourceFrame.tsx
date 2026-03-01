@@ -35,37 +35,36 @@ export default function SourceFrame({
     isDragActive,
 }: SourceFrameProps) {
     return (
-        <section className="flex-1 p-4 md:p-6 flex flex-col gap-6 bg-slate-950/20 rounded-2xl border border-white/5">
-            <div className="flex items-center gap-3">
-                <span className="p-2 bg-white/5 rounded-lg">
+        <section className="flex flex-col gap-6">
+            <div className="flex items-center gap-4">
+                <div className="p-2 bg-[#12121A] rounded-lg border border-white/5">
                     <Maximize className="text-[#3b2bee] w-5 h-5" />
-                </span>
+                </div>
                 <div>
-                    <h2 className="font-bold text-lg md:text-xl text-white">Marco de Origen</h2>
-                    <p className="text-[10px] md:text-xs text-slate-500 font-medium tracking-tight">1920x1080 (16:9) • RAW</p>
+                    <h2 className="font-bold text-xl text-white tracking-tight">Marco de Origen</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">1920x1080 (16:9) • RAW</p>
                 </div>
             </div>
 
-            <div className="flex-1 flex items-center justify-center min-h-75 md:min-h-auto">
+            <div className="relative">
                 {!videoUrl ? (
                     <div
                         {...getRootProps()}
-                        className={`w-full max-w-4xl aspect-video bg-linear-to-br from-[#121022] to-[#0a0a0f] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center text-center p-6 md:p-8 cursor-pointer transition-all ${isDragActive ? 'border-[#3b2bee] bg-[#3b2bee]/20 scale-[1.01]' : 'border-[#3b2bee]/40'
+                        className={`w-full aspect-video bg-transparent rounded-4xl border-2 border-dashed flex flex-col items-center justify-center text-center p-12 cursor-pointer transition-all ${isDragActive ? 'border-[#3b2bee] bg-[#3b2bee]/5 scale-[1.01]' : 'border-[#12121A]'
                             } ${isBackendOnline === false ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                         <input {...getInputProps()} />
-                        <div className="p-3 md:p-4 bg-[#3b2bee]/10 rounded-full mb-4 md:mb-6">
-                            <CloudUpload className="w-8 h-8 md:w-12 md:h-12 text-[#3b2bee]" />
+                        <div className="p-4 bg-[#3b2bee]/10 rounded-full mb-6">
+                            <CloudUpload className="w-10 h-10 text-[#3b2bee]" />
                         </div>
-                        <h3 className="text-xl md:text-2xl font-bold text-white mb-2 leading-tight">Sube tu video aquí</h3>
-                        <p className="text-sm md:text-slate-300 mb-2 font-medium">mp4 horizontal</p>
-                        <p className="text-[10px] md:text-sm text-slate-500">Máx {process.env.NEXT_PUBLIC_MAX_FILE_SIZE_MB || '50'}MB • {process.env.NEXT_PUBLIC_MAX_VIDEO_DURATION_MINUTES || '3'} min</p>
+                        <h3 className="text-2xl font-bold text-white mb-2 tracking-tight">Sube tu video aquí</h3>
+                        <p className="text-slate-500 font-medium lowercase">mp4 horizontal</p>
                         {isBackendOnline === false && (
-                            <p className="text-xs text-red-400 mt-4 font-bold uppercase tracking-widest">Servidor no disponible</p>
+                            <p className="text-xs text-red-500 mt-6 font-bold uppercase tracking-widest">Servidor no disponible</p>
                         )}
                     </div>
                 ) : (
-                    <div className="relative w-full max-w-4xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl group border-4 md:border-[6px] border-slate-900 select-none">
+                    <div className="relative w-full aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl group border-8 border-[#0F0F15] select-none">
                         <div
                             className="w-full h-full transition-transform duration-300 origin-center"
                             style={{ transform: `scale(${settings.zoom / 100}) rotate(${settings.rotation}deg)` }}

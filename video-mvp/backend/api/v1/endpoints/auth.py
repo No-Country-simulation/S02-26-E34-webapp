@@ -29,59 +29,14 @@ from models.user import (
 )
 from repositories.user_repository import UserRepository
 from services.google_auth import GoogleAuthService
-from api.dependencies import get_user_repository
+from api.dependencies import get_user_repository, get_verified_user, get_current_user
 from utils.security import get_password_hash, verify_password
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
-
-
-async def get_verified_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    user_repo: UserRepository = Depends(get_user_repository)
-) -> UserDocument:
-    """
-    Get verified user from JWT token.
-    """
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=HTTPStatus.UNAUTHORIZED,
-                detail="Could not validate credentials"
-            )
-
-        user = await user_repo.get_by_id(user_id)
-
-        if not user:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail="User not found"
-            )
-
-        user_obj = UserDocument(**user)
-
-        if user_obj.verification_status != UserVerificationStatus.VERIFIED:
-            raise HTTPException(
-                status_code=HTTPStatus.FORBIDDEN,
-                detail="Account not verified"
-            )
-
-        return user_obj
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
 
 
 @router.post("/register", response_model=UserLoginResponse)
@@ -280,87 +235,9 @@ async def google_login(request: Request):
         )
 
 
-@router.get("/me", response_model=UserLoginResponse)
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    user_repo: UserRepository = Depends(get_user_repository)
-):
-    """
-    Get current authenticated user information.
-
-    Args:
-        credentials: JWT credentials
-        user_repo: User repository (injected)
-
-    Returns:
-        UserLoginResponse with refreshed token
-
-    Raises:
-        HTTPException: If authentication fails
-    """
-    try:
-        # Decode JWT token
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.SECRET_KEY,
-            algorithms=[settings.ALGORITHM]
-        )
-
-        user_id = payload.get("sub")
-        if not user_id:
-            raise HTTPException(
-                status_code=HTTPStatus.UNAUTHORIZED,
-                detail="Could not validate credentials"
-            )
-
-        # Get user from database
-        user = await user_repo.get_by_id(user_id)
-
-        if not user:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail="User not found"
-            )
-
-        user_obj = UserDocument(**user)
-
-        # Check verification status
-        if user_obj.verification_status != UserVerificationStatus.VERIFIED:
-            raise HTTPException(
-                status_code=HTTPStatus.FORBIDDEN,
-                detail="Account not verified"
-            )
-
-        # Refresh access token
-        access_token = GoogleAuthService.create_access_token(
-            data={"sub": str(user_obj.id), "email": user_obj.email}
-        )
-
-        return UserLoginResponse(
-            user_id=str(user_obj.id),
-            email=user_obj.email,
-            name=user_obj.name,
-            last_name=user_obj.last_name,
-            role=user_obj.role,
-            verification_status=user_obj.verification_status,
-            access_token=access_token
-        )
-
-    except jwt.InvalidTokenError:
-        raise HTTPException(
-            status_code=HTTPStatus.UNAUTHORIZED,
-            detail="Could not validate credentials"
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-            detail=f"Error getting user info: {str(e)}"
-        )
-
-
 @router.get("/cookie-preferences", response_model=CookiePreferencesResponse)
 async def get_cookie_preferences(
-    user: UserDocument = Depends(get_verified_user)
+    user: dict = Depends(get_verified_user)
 ):
     """
     Get current user's cookie preferences.
@@ -371,7 +248,15 @@ async def get_cookie_preferences(
     Returns:
         CookiePreferencesResponse
     """
-    prefs = user.cookie_preferences or CookiePreferences()
+    prefs_data = user.get("cookie_preferences")
+    if prefs_data:
+        if isinstance(prefs_data, dict):
+            prefs = CookiePreferences(**prefs_data)
+        else:
+            prefs = prefs_data
+    else:
+        prefs = CookiePreferences()
+        
     return CookiePreferencesResponse(
         necessary=True,
         preferences=prefs.preferences,
@@ -385,7 +270,7 @@ async def get_cookie_preferences(
 async def update_cookie_preferences(
     request: Request,
     preferences: CookiePreferences,
-    user: UserDocument = Depends(get_verified_user),
+    user: dict = Depends(get_verified_user),
     user_repo: UserRepository = Depends(get_user_repository)
 ):
     """
@@ -403,7 +288,7 @@ async def update_cookie_preferences(
     prefs_dict = preferences.model_dump()
     prefs_dict["updated_at"] = datetime.utcnow()
 
-    await user_repo.update_cookie_preferences(str(user.id), prefs_dict)
+    await user_repo.update_cookie_preferences(str(user["_id"]), prefs_dict)
 
     return CookiePreferencesResponse(
         necessary=True,
