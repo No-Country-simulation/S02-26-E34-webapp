@@ -54,9 +54,20 @@ class BrandingService:
                 logo_positioned = ffmpeg.filter(logo_positioned, 'colorchannelmixer', 
                                               aa=opacity)
             
-            # Combinar video con logo
-            output = ffmpeg.output(input_video, logo_positioned, output_path, 
-                                 vcodec='libx264', pix_fmt='yuv420p')
+            # Combinar video con logo conservando el audio original
+            video = ffmpeg.filter(input_video, 'overlay', 
+                                  'main_w-overlay_w-10', '10') if position == "top-right" else \
+                    ffmpeg.filter(input_video, 'overlay', '10', '10') if position == "top-left" else \
+                    ffmpeg.filter(input_video, 'overlay', 'main_w-overlay_w-10', 'main_h-overlay_h-10') if position == "bottom-right" else \
+                    ffmpeg.filter(input_video, 'overlay', '10', 'main_h-overlay_h-10') if position == "bottom-left" else \
+                    ffmpeg.filter(input_video, 'overlay', '(main_w-overlay_w)/2', '(main_h-overlay_h)/2')
+            
+            # Usar directamente el filtro de overlay sobre el stream de video
+            # pero necesitamos el stream de audio original
+            audio = input_video.audio
+            
+            output = ffmpeg.output(video, audio, output_path, 
+                                 vcodec='libx264', acodec='copy', pix_fmt='yuv420p')
             
             # Ejecutar el comando
             ffmpeg.run(output, overwrite_output=True, quiet=True)
@@ -107,8 +118,9 @@ class BrandingService:
                 f"boxcolor={background_color}@{background_opacity}:boxborderw=5"
             ]
             
-            output = ffmpeg.filter(input_video, 'drawtext', drawtext_filter[0])
-            output = ffmpeg.output(output, output_path, vcodec='libx264', pix_fmt='yuv420p')
+            video = ffmpeg.filter(input_video, 'drawtext', drawtext_filter[0])
+            audio = input_video.audio
+            output = ffmpeg.output(video, audio, output_path, vcodec='libx264', acodec='copy', pix_fmt='yuv420p')
             
             # Ejecutar el comando
             ffmpeg.run(output, overwrite_output=True, quiet=True)

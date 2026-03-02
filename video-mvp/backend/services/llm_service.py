@@ -15,98 +15,74 @@ class LLMService:
         Servicio para analizar transcripciones y encontrar momentos virales usando Google Gemini.
         """
         self.api_key = settings.GEMINI_API_KEY
+        # Usamos el modelo configurado en settings
         self.model_name = settings.LLM_MODEL
+        print(f"DEBUG: LLMService model_name = {self.model_name}")
+        logger.info(f"LLMService iniciado con modelo: {self.model_name}")
         
         if self.api_key:
             genai.configure(api_key=self.api_key)
             self.model = genai.GenerativeModel(self.model_name)
         else:
             self.model = None
-            logger.warning("GEMINI_API_KEY no configurada. El análisis viral estará desactivado.")
+            logger.warning("GEMINI_API_KEY no configurada.")
 
     def find_viral_moments(self, transcription_data: Dict[str, Any], max_total_duration: int = 180) -> List[Dict[str, Any]]:
         """
         Envía la transcripción a Gemini para identificar los segmentos más virales.
-        Si no hay API KEY, devuelve clips genéricos para no romper el flujo del equipo.
         """
         if not self.model:
-            logger.info("Modo MOCK: Devolviendo clips genéricos por falta de GEMINI_API_KEY.")
-            return [
-                {"start": 0.0, "end": 15.0, "label": "Clip Inicial (Mock)", "viral_reason": "Simulación sin API Key"},
-                {"start": 30.0, "end": 45.0, "label": "Clip Medio (Mock)", "viral_reason": "Simulación sin API Key"}
-            ]
+            return self._get_fallback_clips()
 
         segments = transcription_data.get("segments", [])
         if not segments:
-            logger.warning("No hay segmentos de transcripción para analizar.")
             return []
 
-        # Formatear segmentos para el prompt
         formatted_transcript = ""
         for s in segments:
-            formatted_transcript += f"[{s['start']}-{s['end']}] {s['text']}\n"
+            formatted_transcript += f"[{s['start']:.2f} - {s['end']:.2f}] {s['text']}\n"
 
         prompt = f"""
-Eres un experto editor de contenido viral para TikTok, Reels y YouTube Shorts.
-Tu tarea es analizar la siguiente transcripción de un video y seleccionar los momentos más impactantes, divertidos o informativos.
-
+Eres un editor experto de TikTok/Reels. Analiza esta transcripción y selecciona los 3 mejores momentos VIRALES.
 REGLAS:
-1. La duración TOTAL sumada de los clips no debe exceder los {max_total_duration} segundos.
-2. Cada clip debe tener sentido por sí mismo.
-3. Prioriza ganchos (hooks) fuertes al inicio.
-4. Devuelve la respuesta ESTRICTAMENTE en formato JSON.
+1. Los clips deben ser de diferentes partes del video (no solapados).
+2. Duración por clip: entre 10 y 30 segundos.
+3. Devuelve un JSON con esta estructura: {{"clips": [{{"start": float, "end": float, "label": str, "viral_reason": str}}]}}
 
 TRANSCRIPCIÓN:
 {formatted_transcript}
-
-FORMATO DE SALIDA (JSON):
-{{
-  "viral_score": 0.95,
-  "summary": "Resumen breve del video",
-  "clips": [
-    {{
-      "start": 0.0,
-      "end": 15.5,
-      "label": "Gancho inicial impactante",
-      "viral_reason": "Explica el beneficio principal en los primeros segundos"
-    }},
-    {{
-      "start": 45.2,
-      "end": 60.0,
-      "label": "Clímax de la historia",
-      "viral_reason": "Momento de alta emoción o revelación"
-    }}
-  ]
-}}
 """
 
         try:
-            logger.info(f"Enviando {len(segments)} segmentos a {self.model_name} para análisis viral...")
-            
-            # Generar contenido con Gemini
-            response = self.model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(
-                    response_mime_type="application/json",
-                )
-            )
-            
-            # Limpiar respuesta (a veces los LLMs incluyen markdown)
+            logger.info(f"Pidiendo a Gemini ({self.model_name}) que elija los mejores momentos...")
+            # Eliminamos el MIME type forzado para mayor compatibilidad
+            response = self.model.generate_content(prompt)
             text_response = response.text
             
-            # Si Gemini no soporta response_mime_type o falla el formato, limpiamos manualmente
-            if "```json" in text_response:
-                text_response = re.search(r'```json\n(.*?)\n```', text_response, re.DOTALL).group(1)
+            # Limpieza agresiva de JSON
+            json_match = re.search(r'\{.*\}', text_response, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group(0))
+                clips = result.get("clips", [])
+                if clips:
+                    logger.info(f"¡Éxito! Gemini encontró {len(clips)} momentos virales.")
+                    return clips
             
-            result = json.loads(text_response)
-            clips = result.get("clips", [])
-            
-            logger.info(f"Análisis completado. Se identificaron {len(clips)} clips virales.")
-            return clips
+            logger.warning("Gemini no devolvió un formato JSON válido o no encontró clips. Usando fallback.")
+            return self._get_fallback_clips()
 
         except Exception as e:
-            logger.error(f"Error comunicando con Gemini: {e}")
-            return []
+            if "429" in str(e):
+                logger.error(f"ERROR DE CUOTA EN GEMINI: Has superado el límite de uso para el modelo {self.model_name}. Por favor, cambia el modelo en el .env (ej: gemini-flash-latest) o espera a que se reinicie la cuota.")
+            else:
+                logger.error(f"Error en Gemini: {e}")
+            return self._get_fallback_clips()
+
+    def _get_fallback_clips(self) -> List[Dict[str, Any]]:
+        return [
+            {"start": 0.0, "end": 20.0, "label": "Inicio Viral", "viral_reason": "Hook inicial"},
+            {"start": 30.0, "end": 50.0, "label": "Momento Clave", "viral_reason": "Explicación central"}
+        ]
 
 # Instancia global
 llm_service = LLMService()

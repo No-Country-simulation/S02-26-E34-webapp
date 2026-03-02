@@ -178,14 +178,14 @@ class HybridTrackerEngine:
                     x, y, w, h = [int(v) for v in bbox]
                     
                     # VALIDATION: Prevent tracker from drifting.
-                    # Check every 30 frames (1 second) to confirm target.
-                    if self.target_embedding is not None and frame_index % 30 == 0:
+                    # Check every 5 frames (Ultra-fast detection) to confirm target.
+                    if self.target_embedding is not None and frame_index % 5 == 0:
                         cand_face = self.fr.extract_face(frame, (x, y, x+w, y+h))
                         if cand_face is not None:
                             cand_emb = self.fr.get_embedding(frame, cand_face)
                             sim = self.fr.compare(self.target_embedding, cand_emb)
-                            if sim < 0.25: 
-                                logger.info(f"Frame {frame_index}: Tracker drifted (Sim: {sim:.2f}). Dropping.")
+                            if sim < 0.28: # Slightly higher threshold for precision
+                                logger.info(f"Frame {frame_index}: Scene cut or drift detected (Sim: {sim:.2f}).")
                                 success = False
 
                 if success and w > 0 and h > 0 and x < vw and y < vh:
@@ -195,8 +195,7 @@ class HybridTrackerEngine:
                     self.frames_since_lost = 0
                     crop_results.append(self._make_crop(frame_index, timestamp, self.last_known_box, vw, vh, 1.0))
                 else:
-                    logger.info(f"Frame {frame_index}: Target lost. Switching to SEARCHING.")
-                    # Re-init with KCF next time if we find it
+                    # If lost, don't wait. Search immediately.
                     self.state = 3
                     self.frames_since_lost = 1
                     crop_results.append(self._empty_crop(frame_index, timestamp))
@@ -205,8 +204,8 @@ class HybridTrackerEngine:
                 # ESTADO 3: LOST & SEARCHING
                 self.frames_since_lost += 1
                 
-                # Check 1 of every 15 frames for re-identification
-                if self.frames_since_lost % 15 == 0 and self.target_embedding is not None and self.fr.detector:
+                # Check every 3 frames for immediate recovery after a cut
+                if self.frames_since_lost % 3 == 0 and self.target_embedding is not None and self.fr.detector:
                     self.fr.detector.setInputSize((vw, vh))
                     _, faces = self.fr.detector.detect(frame)
                     

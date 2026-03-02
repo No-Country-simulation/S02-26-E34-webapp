@@ -103,6 +103,13 @@ class VideoUploadRequest(BaseModel):
     tags: List[str] = Field(default_factory=list)
     description: Optional[str] = None
     
+    # User selection for tracking
+    selection_cx: Optional[float] = Field(None, ge=0.0, le=1.0)
+    selection_cy: Optional[float] = Field(None, ge=0.0, le=1.0)
+    selection_w: Optional[float] = Field(None, ge=0.0, le=1.0)
+    selection_h: Optional[float] = Field(None, ge=0.0, le=1.0)
+    selection_time: Optional[float] = Field(0.0, ge=0.0)
+    
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
