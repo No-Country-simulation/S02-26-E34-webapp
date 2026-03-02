@@ -2,7 +2,7 @@
 
 Verv.io es una plataforma inteligente diseñada para creadores de contenido, que automatiza la conversión de videos horizontales (16:9) a formatos verticales (9:16) optimizados para TikTok, Instagram Reels y YouTube Shorts.
 
-![Verv.io Preview](video-mvp/frontend/public/og-image.png)
+![Verv.io Preview](preview.png)
 
 ## 🚀 Características Principales
 

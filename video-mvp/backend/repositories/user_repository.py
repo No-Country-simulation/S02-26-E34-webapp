@@ -278,6 +278,58 @@ class UserRepository:
         except Exception as e:
             logger.error(f"Error updating cookie preferences: {e}")
             return False
+
+    async def update_session(
+        self,
+        user_id: str,
+        session_id: str,
+        session_expires_at: datetime
+    ) -> bool:
+        """
+        Persist and renew user session information.
+
+        Args:
+            user_id: User ID
+            session_id: Session identifier
+            session_expires_at: Session expiration datetime (UTC)
+
+        Returns:
+            True if updated, False otherwise
+        """
+        return await self.update(
+            user_id,
+            {
+                "session_id": session_id,
+                "session_expires_at": session_expires_at,
+                "last_login_at": datetime.utcnow()
+            }
+        )
+
+    async def is_session_valid(self, user_id: str, session_id: str) -> bool:
+        """
+        Check if a persisted session is valid for a user.
+
+        Args:
+            user_id: User ID
+            session_id: Session identifier
+
+        Returns:
+            True if session exists, matches and is not expired
+        """
+        user = await self.get_by_id(user_id)
+        if not user:
+            return False
+
+        persisted_session_id = user.get("session_id")
+        session_expires_at = user.get("session_expires_at")
+
+        if not persisted_session_id or persisted_session_id != session_id:
+            return False
+
+        if not session_expires_at:
+            return False
+
+        return session_expires_at > datetime.utcnow()
     
     async def get_all(
         self,

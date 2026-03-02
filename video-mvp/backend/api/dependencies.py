@@ -9,6 +9,7 @@ Provides:
 - Pagination helpers
 """
 import logging
+from datetime import datetime
 from typing import Optional, AsyncGenerator
 
 from fastapi import Depends, HTTPException, status, Request
@@ -67,11 +68,12 @@ async def get_user_repository(
 
 # ==================== Authentication Dependencies ====================
 
-async def get_current_user_id(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> str:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    user_repo: UserRepository = Depends(get_user_repository)
+) -> dict:
     """
-    Get current user ID from JWT token.
+    Get current user document.
     
     Usage:
         user_id = Depends(get_current_user_id)
@@ -95,8 +97,33 @@ async def get_current_user_id(
                 detail="Invalid token",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+
+        user = await user_repo.get_by_id(user_id)
+        if not user:
+            logger.error(f"User not found for ID: {user_id}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        token_session_id = payload.get("sid")
+        if token_session_id:
+            persisted_session_id = user.get("session_id")
+            session_expires_at = user.get("session_expires_at")
+
+            if (
+                not persisted_session_id
+                or persisted_session_id != token_session_id
+                or not session_expires_at
+                or session_expires_at <= datetime.utcnow()
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Session expired or invalid",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
         
-        return user_id
+        return user
         
     except jwt.ExpiredSignatureError:
         logger.error("Token expired")
@@ -114,12 +141,11 @@ async def get_current_user_id(
         )
 
 
-async def get_current_user(
-    user_id: str = Depends(get_current_user_id),
-    user_repo: UserRepository = Depends(get_user_repository)
-) -> dict:
+async def get_current_user_id(
+    user: dict = Depends(get_current_user)
+) -> str:
     """
-    Get current user document.
+    Get current user ID from authenticated user document.
     
     Usage:
         user = Depends(get_current_user)
@@ -127,16 +153,7 @@ async def get_current_user(
     Raises:
         HTTPException: If user not found
     """
-    user = await user_repo.get_by_id(user_id)
-    
-    if not user:
-        logger.error(f"User not found for ID: {user_id}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
-        )
-    
-    return user
+    return str(user.get("_id"))
 
 
 async def get_verified_user(
@@ -191,7 +208,24 @@ async def get_optional_user(
         if not user_id:
             return None
         
-        return await user_repo.get_by_id(user_id)
+        user = await user_repo.get_by_id(user_id)
+        if not user:
+            return None
+
+        token_session_id = payload.get("sid")
+        if token_session_id:
+            persisted_session_id = user.get("session_id")
+            session_expires_at = user.get("session_expires_at")
+
+            if (
+                not persisted_session_id
+                or persisted_session_id != token_session_id
+                or not session_expires_at
+                or session_expires_at <= datetime.utcnow()
+            ):
+                return None
+
+        return user
         
     except Exception:
         return None

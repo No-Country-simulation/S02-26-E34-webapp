@@ -12,6 +12,30 @@ import SourceFrame from '@/components/editor/SourceFrame';
 import OptionsPanel from '@/components/editor/OptionsPanel';
 import PreviewPanel from '@/components/editor/PreviewPanel';
 
+interface SelectionArea {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  frameWidth: number;
+  frameHeight: number;
+  centerX: number;
+  centerY: number;
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+const formatSeconds = (seconds: number): string => {
+  const total = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(total / 60);
+  const remain = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(remain).padStart(2, '0')}`;
+};
+
+const MIN_CLIP_GAP_SECONDS = 1;
+
 export default function ImprovedEditorPage() {
   const {
     videoUrl,
@@ -30,7 +54,7 @@ export default function ImprovedEditorPage() {
 
   const [videoFileLocal, setVideoFileLocal] = useState<File | null>(null);
   const [settings, setSettings] = useState({
-    zoom: 100,
+    selectionSize: 100,
     rotation: 0,
     cropX: 50,
     cropY: 50,
@@ -45,6 +69,10 @@ export default function ImprovedEditorPage() {
     youtube: { connected: false }
   });
   const [statusMessage, setStatusMessage] = useState<string>('');
+  const [selectionArea, setSelectionArea] = useState<SelectionArea | null>(null);
+  const [videoDuration, setVideoDuration] = useState<number>(0);
+  const [clipStart, setClipStart] = useState<number>(0);
+  const [clipEnd, setClipEnd] = useState<number>(0);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const { isOnline: isBackendOnline } = useBackendStatus();
@@ -101,11 +129,28 @@ export default function ImprovedEditorPage() {
 
       const enhancedOptions = {
         ...options,
-        zoom: settings.zoom,
+        selectionSize: settings.selectionSize,
         rotation: settings.rotation,
         cropX: settings.cropX,
         cropY: settings.cropY,
-        autoTrack: settings.autoTrack
+        autoTrack: settings.autoTrack,
+        selectionArea,
+        selectionCoordinates: selectionArea
+          ? {
+            x: selectionArea.x,
+            y: selectionArea.y,
+            width: selectionArea.width,
+            height: selectionArea.height,
+            left: selectionArea.left,
+            top: selectionArea.top,
+            right: selectionArea.right,
+            bottom: selectionArea.bottom
+          }
+          : null,
+        trim: {
+          start: clipStart,
+          end: clipEnd
+        }
       };
 
       const response = await uploadVideo(videoFileLocal, enhancedOptions);
@@ -169,7 +214,7 @@ export default function ImprovedEditorPage() {
     setIsProcessing(false);
     setProgress(0);
     setSettings({
-      zoom: 100,
+      selectionSize: 100,
       rotation: 0,
       cropX: 50,
       cropY: 50,
@@ -178,6 +223,10 @@ export default function ImprovedEditorPage() {
       showGrid: true,
       autoTrack: false
     });
+    setSelectionArea(null);
+    setVideoDuration(0);
+    setClipStart(0);
+    setClipEnd(0);
   }, [setVideoUrl, setConvertedUrl, setIsProcessing, setProgress]);
 
   useEffect(() => {
@@ -209,6 +258,33 @@ export default function ImprovedEditorPage() {
     setSettings(prev => ({ ...prev, [setting]: value }));
   };
 
+  useEffect(() => {
+    const currentVideo = videoRef.current;
+    if (!currentVideo || !videoUrl) {
+      setVideoDuration(0);
+      setClipStart(0);
+      setClipEnd(0);
+      return;
+    }
+
+    const onMetadata = () => {
+      const duration = Number.isFinite(currentVideo.duration) ? currentVideo.duration : 0;
+      setVideoDuration(duration);
+      setClipStart(0);
+      setClipEnd(duration);
+    };
+
+    currentVideo.addEventListener('loadedmetadata', onMetadata);
+
+    if (currentVideo.readyState >= 1) {
+      onMetadata();
+    }
+
+    return () => {
+      currentVideo.removeEventListener('loadedmetadata', onMetadata);
+    };
+  }, [videoUrl]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] text-white overflow-x-hidden font-sans">
       <main className="flex-1 flex flex-col lg:flex-row gap-8 p-8 max-w-400 mx-auto w-full">
@@ -220,6 +296,8 @@ export default function ImprovedEditorPage() {
             videoUrl={videoUrl}
             isBackendOnline={isBackendOnline}
             settings={settings}
+            onCropXChange={(value) => handleSettingChange('cropX', value)}
+            onSelectionAreaChange={setSelectionArea}
             videoRef={videoRef}
             getRootProps={getRootProps}
             getInputProps={getInputProps}
@@ -251,16 +329,50 @@ export default function ImprovedEditorPage() {
                 <h2 className="text-sm font-black uppercase tracking-widest">Línea de Tiempo</h2>
               </div>
               <div className="text-[10px] font-mono text-slate-500">
-                00:00:00 / 00:00:15
+                {formatSeconds(clipStart)} - {formatSeconds(clipEnd)} / {formatSeconds(videoDuration)}
               </div>
             </div>
-            <div className="h-32 bg-black/40 rounded-2xl border border-white/5 relative overflow-hidden">
-              <div className="absolute top-0 left-1/4 bottom-0 w-px bg-[#3b2bee] shadow-[0_0_10px_#3b2bee] z-10">
-                <div className="w-2 h-2 rounded-full bg-[#3b2bee] -ml-1 -mt-1"></div>
+            <div className="h-32 bg-black/40 rounded-2xl border border-white/5 relative overflow-hidden p-4 flex flex-col justify-center gap-4">
+              <div className="relative h-3 rounded-full bg-white/10">
+                <div
+                  className="absolute top-0 h-3 rounded-full bg-[#3b2bee]/50"
+                  style={{
+                    left: `${videoDuration > 0 ? (clipStart / videoDuration) * 100 : 0}%`,
+                    width: `${videoDuration > 0 ? ((clipEnd - clipStart) / videoDuration) * 100 : 0}%`
+                  }}
+                ></div>
               </div>
-              {/* Timeline Grid Background */}
-              <div className="absolute inset-0 opacity-10"
-                style={{ backgroundImage: 'linear-gradient(90deg, #333 1px, transparent 1px)', backgroundSize: '40px 100%' }}>
+
+              <div className={`relative ${!videoUrl ? 'opacity-40 pointer-events-none' : ''}`}>
+                <input
+                  type="range"
+                  min={0}
+                  max={videoDuration || 0}
+                  step={1}
+                  value={clipStart}
+                  onChange={(event) => {
+                    const nextStart = Math.round(Number(event.target.value));
+                    setClipStart(Math.min(nextStart, Math.max(0, clipEnd - MIN_CLIP_GAP_SECONDS)));
+                  }}
+                  className="w-full accent-[#3b2bee]"
+                />
+                <input
+                  type="range"
+                  min={0}
+                  max={videoDuration || 0}
+                  step={1}
+                  value={clipEnd}
+                  onChange={(event) => {
+                    const nextEnd = Math.round(Number(event.target.value));
+                    setClipEnd(Math.max(nextEnd, Math.min(videoDuration || 0, clipStart + MIN_CLIP_GAP_SECONDS)));
+                  }}
+                  className="w-full accent-[#3b2bee] mt-2"
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
+                <span>Inicio: {formatSeconds(clipStart)}</span>
+                <span>Fin: {formatSeconds(clipEnd)}</span>
               </div>
             </div>
           </section>
@@ -272,6 +384,7 @@ export default function ImprovedEditorPage() {
             videoUrl={videoUrl}
             convertedUrl={convertedUrl}
             settings={settings}
+            selectionArea={selectionArea}
             onConvert={handleConvert}
             isProcessing={isProcessing}
             progress={progress}

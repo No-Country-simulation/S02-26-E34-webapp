@@ -55,6 +55,9 @@ class UserDocument(BaseModel):
     picture: Optional[str] = None  # URL de la imagen de perfil de Google
     role: UserRole = UserRole.USER
     verification_status: UserVerificationStatus = UserVerificationStatus.PENDING
+    session_id: Optional[str] = None
+    session_expires_at: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     verified_at: Optional[datetime] = None
@@ -105,6 +108,7 @@ class UserLoginResponse(BaseModel):
     last_name: Optional[str] = None
     role: UserRole
     verification_status: UserVerificationStatus
+    session_id: Optional[str] = None
     access_token: str
     token_type: str = "bearer"
 

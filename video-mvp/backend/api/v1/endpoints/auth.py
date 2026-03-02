@@ -9,9 +9,10 @@ Features:
 - Cookie preferences management
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from typing import Optional
+from uuid import uuid4
 
 import jwt
 from bson import ObjectId
@@ -37,6 +38,31 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 security = HTTPBearer()
+
+
+def _is_session_still_valid(user: UserDocument) -> bool:
+    return bool(
+        user.session_id
+        and user.session_expires_at
+        and user.session_expires_at > datetime.utcnow()
+    )
+
+
+async def _renew_or_create_session_id(
+    user: UserDocument,
+    user_repo: UserRepository
+) -> str:
+    if _is_session_still_valid(user):
+        session_id = user.session_id
+    else:
+        session_id = str(uuid4())
+
+    session_expires_at = datetime.utcnow() + timedelta(
+        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
+    )
+
+    await user_repo.update_session(str(user.id), session_id, session_expires_at)
+    return session_id
 
 
 @router.post("/register", response_model=UserLoginResponse)
@@ -137,9 +163,11 @@ async def login_user(
                 detail="Your account has been rejected by an administrator."
             )
 
+        session_id = await _renew_or_create_session_id(user, user_repo)
+
         # Create access token
         access_token = GoogleAuthService.create_access_token(
-            data={"sub": str(user.id), "email": user.email}
+            data={"sub": str(user.id), "email": user.email, "sid": session_id}
         )
 
         return UserLoginResponse(
@@ -149,6 +177,7 @@ async def login_user(
             last_name=user.last_name,
             role=user.role,
             verification_status=user.verification_status,
+            session_id=session_id,
             access_token=access_token
         )
 
@@ -163,7 +192,10 @@ async def login_user(
 
 
 @router.post("/google", response_model=UserLoginResponse)
-async def google_login(request: Request):
+async def google_login(
+    request: Request,
+    user_repo: UserRepository = Depends(get_user_repository)
+):
     """
     Authenticate with Google OAuth.
 
@@ -211,9 +243,11 @@ async def google_login(request: Request):
                 detail="Your account has been rejected by an administrator."
             )
 
+        session_id = await _renew_or_create_session_id(user, user_repo)
+
         # Create access token
         access_token = GoogleAuthService.create_access_token(
-            data={"sub": str(user.id), "email": user.email}
+            data={"sub": str(user.id), "email": user.email, "sid": session_id}
         )
 
         return UserLoginResponse(
@@ -223,6 +257,7 @@ async def google_login(request: Request):
             last_name=user.last_name,
             role=user.role,
             verification_status=user.verification_status,
+            session_id=session_id,
             access_token=access_token
         )
 
@@ -232,6 +267,46 @@ async def google_login(request: Request):
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f"Authentication error: {str(e)}"
+        )
+
+
+@router.post("/refresh", response_model=UserLoginResponse)
+async def refresh_session(
+    user: dict = Depends(get_current_user),
+    user_repo: UserRepository = Depends(get_user_repository)
+):
+    """
+    Refresh authenticated user session and issue a new access token.
+
+    Requires a valid current Bearer token. If token/session are valid,
+    session expiration is renewed automatically and a fresh JWT is returned.
+    """
+    try:
+        user_doc = UserDocument(**user)
+        session_id = await _renew_or_create_session_id(user_doc, user_repo)
+
+        access_token = GoogleAuthService.create_access_token(
+            data={"sub": str(user_doc.id), "email": user_doc.email, "sid": session_id}
+        )
+
+        return UserLoginResponse(
+            user_id=str(user_doc.id),
+            email=user_doc.email,
+            name=user_doc.name,
+            last_name=user_doc.last_name,
+            role=user_doc.role,
+            verification_status=user_doc.verification_status,
+            session_id=session_id,
+            access_token=access_token
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during session refresh: {str(e)}")
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail=f"Session refresh error: {str(e)}"
         )
 
 

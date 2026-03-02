@@ -1,9 +1,10 @@
 'use client';
 
+import { useMemo } from 'react';
 import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download } from 'lucide-react';
 
 interface Settings {
-    zoom: number;
+    selectionSize: number;
     rotation: number;
     cropX: number;
     cropY: number;
@@ -13,10 +14,26 @@ interface Settings {
     autoTrack: boolean;
 }
 
+interface SelectionArea {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    frameWidth: number;
+    frameHeight: number;
+    centerX: number;
+    centerY: number;
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+}
+
 interface PreviewPanelProps {
     videoUrl: string | null;
     convertedUrl: string | null;
     settings: Settings;
+    selectionArea: SelectionArea | null;
     onConvert: () => void;
     isProcessing: boolean;
     progress: number;
@@ -33,6 +50,7 @@ export default function PreviewPanel({
     videoUrl,
     convertedUrl,
     settings,
+    selectionArea,
     onConvert,
     isProcessing,
     progress,
@@ -40,6 +58,33 @@ export default function PreviewPanel({
     isBackendOnline,
     socialConnections
 }: PreviewPanelProps) {
+    const previewStyle = useMemo(() => {
+        if (!selectionArea || selectionArea.width <= 0 || selectionArea.height <= 0 || selectionArea.frameWidth <= 0 || selectionArea.frameHeight <= 0) {
+            return {
+                transform: `rotate(${settings.rotation}deg)`,
+                transformOrigin: '50% 50%',
+                left: '0%',
+                top: '0%',
+                width: '100%',
+                height: '100%'
+            };
+        }
+
+        const widthScale = 100 / ((selectionArea.width / selectionArea.frameWidth) * 100);
+        const heightScale = 100 / ((selectionArea.height / selectionArea.frameHeight) * 100);
+        const top = -selectionArea.y * (heightScale / 100);
+        const left = -selectionArea.x * (widthScale / 100);
+
+        return {
+            transform: `rotate(${settings.rotation}deg)`,
+            transformOrigin: 'top left',
+            left: `${left}px`,
+            top: `${top}px`,
+            width: `${selectionArea.frameWidth * (widthScale / 100)}px`,
+            height: `${selectionArea.frameHeight * (heightScale / 100)}px`
+        };
+    }, [selectionArea, settings.rotation]);
+
     return (
         <section className="w-full p-8 flex flex-col gap-10 bg-[#0F0F15] rounded-[2.5rem] border border-white/5 h-full shadow-2xl">
             <div className="flex items-center gap-3">
@@ -59,19 +104,16 @@ export default function PreviewPanel({
 
                     <div className="w-full h-full rounded-[1.8rem] md:rounded-4xl overflow-hidden relative bg-slate-900/40">
                         {convertedUrl ? (
-                            <video src={convertedUrl} className="w-full h-full object-cover" controls autoPlay />
+                            <video src={convertedUrl} className="w-full h-full object-cover" controls={false} autoPlay />
                         ) : videoUrl ? (
                             <div
-                                className="absolute inset-0 transition-all duration-300"
-                                style={{
-                                    transform: `scale(${settings.zoom / 100}) rotate(${settings.rotation}deg)`,
-                                    marginLeft: `${-(settings.cropX - 50) * 1.5}px`,
-                                    marginTop: `${-(settings.cropY - 50) * 0.75}px`
-                                }}
+                                className="absolute transition-all duration-150"
+                                style={previewStyle}
                             >
                                 <video
                                     src={videoUrl}
-                                    className="h-full w-auto max-w-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-cover"
+                                    className="w-full h-full object-cover"
+                                    controls={false}
                                 />
                             </div>
                         ) : (

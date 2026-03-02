@@ -1,11 +1,12 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
 import { CloudUpload } from 'lucide-react';
 import { Maximize } from 'lucide-react';
 import { DropzoneInputProps, DropzoneRootProps } from 'react-dropzone';
 
 interface Settings {
-    zoom: number;
+    selectionSize: number;
     rotation: number;
     cropX: number;
     cropY: number;
@@ -19,6 +20,21 @@ interface SourceFrameProps {
     videoUrl: string | null;
     isBackendOnline: boolean | null;
     settings: Settings;
+    onCropXChange: (value: number) => void;
+    onSelectionAreaChange: (selection: {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+        frameWidth: number;
+        frameHeight: number;
+        centerX: number;
+        centerY: number;
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+    }) => void;
     videoRef: React.RefObject<HTMLVideoElement | null>;
     getRootProps: (props?: DropzoneRootProps) => DropzoneRootProps;
     getInputProps: (props?: DropzoneInputProps) => DropzoneInputProps;
@@ -29,11 +45,139 @@ export default function SourceFrame({
     videoUrl,
     isBackendOnline,
     settings,
+    onCropXChange,
+    onSelectionAreaChange,
     videoRef,
     getRootProps,
     getInputProps,
     isDragActive,
 }: SourceFrameProps) {
+    const frameRef = useRef<HTMLDivElement>(null);
+    const selectionRef = useRef<HTMLDivElement>(null);
+    const dragStateRef = useRef<{ isDragging: boolean; startX: number; startLeft: number }>({
+        isDragging: false,
+        startX: 0,
+        startLeft: 0
+    });
+
+    const emitSelectionArea = () => {
+        const frameElement = frameRef.current;
+        const selectionElement = selectionRef.current;
+
+        if (!frameElement || !selectionElement) return;
+
+        const frameRect = frameElement.getBoundingClientRect();
+        const selectionRect = selectionElement.getBoundingClientRect();
+
+        const x = Math.round(selectionRect.left - frameRect.left);
+        const y = Math.round(selectionRect.top - frameRect.top);
+        const width = Math.round(selectionRect.width);
+        const height = Math.round(selectionRect.height);
+        const centerX = Math.round(x + width / 2);
+        const centerY = Math.round(y + height / 2);
+
+        onSelectionAreaChange({
+            x,
+            y,
+            width,
+            height,
+            frameWidth: Math.round(frameRect.width),
+            frameHeight: Math.round(frameRect.height),
+            centerX,
+            centerY,
+            left: x,
+            top: y,
+            right: x + width,
+            bottom: y + height
+        });
+    };
+
+    useEffect(() => {
+        if (!videoUrl) return;
+        emitSelectionArea();
+    }, [videoUrl, settings.cropX, settings.selectionSize]);
+
+    useEffect(() => {
+        if (!videoUrl || !frameRef.current) return;
+
+        const resizeObserver = new ResizeObserver(() => {
+            emitSelectionArea();
+        });
+
+        resizeObserver.observe(frameRef.current);
+
+        return () => {
+            resizeObserver.disconnect();
+        };
+    }, [videoUrl]);
+
+    const handlePointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
+        const frameElement = frameRef.current;
+        const selectionElement = selectionRef.current;
+
+        if (!frameElement || !selectionElement) return;
+
+        const frameRect = frameElement.getBoundingClientRect();
+        const selectionRect = selectionElement.getBoundingClientRect();
+
+        dragStateRef.current = {
+            isDragging: true,
+            startX: event.clientX,
+            startLeft: selectionRect.left - frameRect.left
+        };
+
+        event.currentTarget.setPointerCapture(event.pointerId);
+        event.preventDefault();
+    };
+
+    const handlePointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
+        if (!dragStateRef.current.isDragging) return;
+
+        const frameElement = frameRef.current;
+        const selectionElement = selectionRef.current;
+
+        if (!frameElement || !selectionElement) return;
+
+        const frameRect = frameElement.getBoundingClientRect();
+        const selectionRect = selectionElement.getBoundingClientRect();
+
+        const deltaX = event.clientX - dragStateRef.current.startX;
+        const nextLeftRaw = dragStateRef.current.startLeft + deltaX;
+        const maxLeft = Math.max(0, frameRect.width - selectionRect.width);
+        const nextLeft = Math.min(Math.max(0, nextLeftRaw), maxLeft);
+        const centerX = nextLeft + selectionRect.width / 2;
+        const nextCropX = (centerX / frameRect.width) * 100;
+
+        onCropXChange(Number(nextCropX.toFixed(2)));
+
+        const x = Math.round(nextLeft);
+        const y = Math.round(selectionRect.top - frameRect.top);
+        const width = Math.round(selectionRect.width);
+        const height = Math.round(selectionRect.height);
+        const centerY = Math.round(y + height / 2);
+
+        onSelectionAreaChange({
+            x,
+            y,
+            width,
+            height,
+            frameWidth: Math.round(frameRect.width),
+            frameHeight: Math.round(frameRect.height),
+            centerX: Math.round(centerX),
+            centerY,
+            left: x,
+            top: y,
+            right: x + width,
+            bottom: y + height
+        });
+    };
+
+    const handlePointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
+        dragStateRef.current.isDragging = false;
+        event.currentTarget.releasePointerCapture(event.pointerId);
+        emitSelectionArea();
+    };
+
     return (
         <section className="flex flex-col gap-6">
             <div className="flex items-center gap-4">
@@ -64,20 +208,26 @@ export default function SourceFrame({
                         )}
                     </div>
                 ) : (
-                    <div className="relative w-full aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl group border-8 border-[#0F0F15] select-none">
+                    <div ref={frameRef} className="relative w-full aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl group border-8 border-[#0F0F15] select-none">
                         <div
                             className="w-full h-full transition-transform duration-300 origin-center"
-                            style={{ transform: `scale(${settings.zoom / 100}) rotate(${settings.rotation}deg)` }}
+                            style={{ transform: `rotate(${settings.rotation}deg)` }}
                         >
-                            <video ref={videoRef} src={videoUrl} className="w-full h-full object-cover" controls />
+                            <video ref={videoRef} src={videoUrl} className="w-full h-full object-cover" controls={false} />
                         </div>
 
                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                             <div
-                                className="h-full aspect-9/16 border-2 border-[#3b2bee] ring-[100vw] ring-black/60 relative pointer-events-auto cursor-move transition-all duration-300"
+                                ref={selectionRef}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerCancel={handlePointerUp}
+                                className="aspect-9/16 border-2 border-[#3b2bee] ring-[100vw] ring-black/60 absolute top-1/2 pointer-events-auto cursor-ew-resize transition-all duration-150 touch-none"
                                 style={{
-                                    left: `${(settings.cropX - 50) * 0.8}%`,
-                                    top: `${(settings.cropY - 50) * 0.4}%`
+                                    height: `${settings.selectionSize}%`,
+                                    left: `${settings.cropX}%`,
+                                    transform: 'translate(-50%, -50%)'
                                 }}
                             >
                                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#3b2bee] text-[8px] md:text-[10px] font-black text-white rounded-full uppercase tracking-[0.2em] shadow-xl flex items-center gap-2 whitespace-nowrap">

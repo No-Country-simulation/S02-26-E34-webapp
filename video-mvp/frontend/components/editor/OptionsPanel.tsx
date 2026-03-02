@@ -2,19 +2,15 @@
 
 import {
     CloudUpload,
-    Download,
-    Maximize,
-    RefreshCw,
     Settings,
-    Shield,
-    ZoomIn,
-    ZoomOut,
+    Minimize2,
+    Maximize2,
     RotateCcw,
     RotateCw,
 } from 'lucide-react';
 
 interface Settings {
-    zoom: number;
+    selectionSize: number;
     rotation: number;
     cropX: number;
     cropY: number;
@@ -74,28 +70,28 @@ export default function OptionsPanel({
                     </div>
                 </div>
 
-                {/* Right Column: Editing Controls (Zoom, Rotation, Safe Zones) */}
+                {/* Right Column: Editing Controls (Selection, Rotation, Safe Zones) */}
                 <div className="space-y-8">
-                    {/* Zoom Controls */}
+                    {/* Selection Size Controls */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Escala / Zoom</span>
-                            <span className="text-[#3b2bee] font-mono text-[10px] font-black">{settings.zoom}%</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tamaño Marco</span>
+                            <span className="text-[#3b2bee] font-mono text-[10px] font-black">{settings.selectionSize}%</span>
                         </div>
                         <div className={`flex items-center gap-1.5 transition-opacity ${!videoUrl || isBackendOnline === false || isProcessing ? 'opacity-40 cursor-not-allowed' : ''}`}>
                             <button
-                                onClick={() => onSettingChange('zoom', Math.max(50, settings.zoom - 10))}
+                                onClick={() => onSettingChange('selectionSize', Math.max(40, settings.selectionSize - 5))}
                                 disabled={!videoUrl || isBackendOnline === false || isProcessing}
                                 className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
                             >
-                                <ZoomOut className="w-3.5 h-3.5 text-slate-400" />
+                                <Minimize2 className="w-3.5 h-3.5 text-slate-400" />
                             </button>
                             <button
-                                onClick={() => onSettingChange('zoom', Math.min(200, settings.zoom + 10))}
+                                onClick={() => onSettingChange('selectionSize', Math.min(100, settings.selectionSize + 5))}
                                 disabled={!videoUrl || isBackendOnline === false || isProcessing}
                                 className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
                             >
-                                <ZoomIn className="w-3.5 h-3.5 text-slate-400" />
+                                <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
                             </button>
                         </div>
                     </div>

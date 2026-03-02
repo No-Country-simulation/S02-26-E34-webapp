@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Crop, Settings, User, BarChart3, LogOut, Menu, X, Smartphone, Home, Layout } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { ThemeToggle } from './ThemeToggle';
+import { useSessionRefresh } from '@/lib/useSessionRefresh';
 
 interface HeaderProps {
   onLogoClick?: () => void;
@@ -18,6 +19,7 @@ const Header = ({ onLogoClick, showProjectLabel = false }: HeaderProps) => {
   const menuRef = useRef<HTMLDivElement>(null);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const { refreshSession } = useSessionRefresh();
 
   const handleClick = () => {
     if (onLogoClick) {
@@ -63,7 +65,7 @@ const Header = ({ onLogoClick, showProjectLabel = false }: HeaderProps) => {
       }
     };
 
-    checkUser();
+    refreshSession().finally(checkUser);
 
     // Listen for both cross-tab and custom same-tab updates
     window.addEventListener('storage', checkUser);
@@ -73,7 +75,7 @@ const Header = ({ onLogoClick, showProjectLabel = false }: HeaderProps) => {
       window.removeEventListener('storage', checkUser);
       window.removeEventListener('user-state-change', checkUser);
     };
-  }, []);
+  }, [refreshSession]);
 
   const handleLogout = (e: React.MouseEvent) => {
     e.preventDefault();

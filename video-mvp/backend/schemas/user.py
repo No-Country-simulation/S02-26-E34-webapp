@@ -233,6 +233,7 @@ class UserLoginResponse(BaseModel):
     name: str
     role: UserRole
     verification_status: UserVerificationStatus
+    session_id: Optional[str] = None
     access_token: str
     token_type: str = "bearer"
     
@@ -244,6 +245,7 @@ class UserLoginResponse(BaseModel):
                 "name": "John Doe",
                 "role": "user",
                 "verification_status": "verified",
+                "session_id": "4ce014cc-b7f3-4a04-b6f9-d4dc532f0ea4",
                 "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                 "token_type": "bearer"
             }

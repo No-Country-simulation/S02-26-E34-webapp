@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { showError, showSuccess, showInfo } from '@/lib/sweetalert';
 import FeedbackCollector from '@/components/FeedbackCollector';
+import { useSessionRefresh } from '@/lib/useSessionRefresh';
 
 // Google OAuth configuration
 const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
@@ -28,14 +29,19 @@ export default function AuthPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { refreshSession } = useSessionRefresh();
 
   // Redirect to editor if already logged in
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      router.push('/editor');
-    }
-  }, [router]);
+    const validateAndRedirect = async () => {
+      const refreshedUser = await refreshSession();
+      if (refreshedUser) {
+        router.push('/editor');
+      }
+    };
+
+    validateAndRedirect();
+  }, [router, refreshSession]);
 
   // Initialize Google Sign-In
   useEffect(() => {
