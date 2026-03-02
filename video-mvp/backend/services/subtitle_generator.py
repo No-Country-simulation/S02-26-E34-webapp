@@ -28,10 +28,19 @@ class SubtitleGeneratorService:
         """
         Carga el modelo Whisper
         """
+        # Intentar importar whisper si no se hizo antes
         if not self.whisper_available:
-            logger.info("Whisper not available, skipping model loading")
+            try:
+                import whisper
+                self.whisper_available = True
+                self.whisper_module = whisper
+            except ImportError:
+                logger.warning("Whisper no está instalado. Saltando carga de modelo.")
+                return
+
+        if self.model is not None:
             return
-            
+
         try:
             self.model = self.whisper_module.load_model(self.model_size)
             logger.info(f"Modelo Whisper '{self.model_size}' cargado exitosamente")
@@ -43,9 +52,11 @@ class SubtitleGeneratorService:
         """
         Genera subtítulos para un video
         """
+        # Cargar modelo si es necesario
+        self.load_model()
+        
         if not self.whisper_available or self.model is None:
-            logger.warning("Whisper not available, returning empty subtitles")
-            # Return a mock subtitle list
+            logger.warning("Whisper no disponible para generar subtítulos.")
             return []
 
         try:

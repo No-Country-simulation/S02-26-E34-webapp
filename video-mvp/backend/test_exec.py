@@ -193,7 +193,7 @@ def build_parser():
 	p.add_argument("--video", type=str, help="Path to input video (optional)")
 	p.add_argument("--frames", type=int, default=60, help="Number of synthetic frames if no video")
 	p.add_argument("--out", type=str, default="analysis_output.json", help="Output JSON file")
-	p.add_argument("--alpha", type=float, default=0.15, help="Stabilizer alpha")
+	p.add_argument("--alpha", type=float, default=0.08, help="Stabilizer alpha (lower = smoother)")
 	p.add_argument("--expand", type=float, default=1.2, help="Expand factor for crop window")
 	
 	# Mock Frontend Selection Arguments

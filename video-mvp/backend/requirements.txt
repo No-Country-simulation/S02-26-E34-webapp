@@ -1,4 +1,36 @@
-pydantic
-opencv-python
-mediapipe
-deepface
+# Core API and Web Server
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+python-multipart==0.0.6
+nest-asyncio==1.5.8
+
+# Database and Cache
+motor==3.3.2
+pymongo==4.6.0
+redis==5.0.1
+
+# AI and Video Processing
+# Fixed to 0.10.9 because core/mediapipe_detector.py is now optimized for its API structure
+mediapipe==0.10.9 
+opencv-contrib-python>=4.8.1.78
+ffmpeg-python==0.2.0
+numpy==1.24.3
+pillow==10.1.0
+openai-whisper
+google-generativeai>=0.3.0
+
+# Task Queue
+celery==5.3.4
+
+# Authentication and Security
+google-auth==2.23.4
+google-auth-oauthlib==1.1.0
+google-auth-httplib2==0.1.1
+PyJWT==2.8.0
+
+# Storage and Utils
+boto3==1.33.1
+setuptools

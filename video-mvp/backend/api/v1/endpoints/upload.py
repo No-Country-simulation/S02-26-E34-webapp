@@ -111,6 +111,7 @@ async def upload_video(
         "original_file_path": temp_file_path,
         "add_subtitles": add_subtitles,
         "add_branding": add_branding,
+        "is_premium": user is not None,  # Si hay usuario, es premium (sin marca de agua)
         "file_size_bytes": file_size,
         "duration_seconds": duration,
         "status": VideoStatus.UPLOADED.value,

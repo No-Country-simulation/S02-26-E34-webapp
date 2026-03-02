@@ -2,14 +2,13 @@ from typing import List, Optional
 import os
 import numpy as np
 
+import mediapipe as mp
 try:
     from mediapipe.tasks.python import vision
     from mediapipe.tasks.python.core.base_options import BaseOptions
-    from mediapipe.tasks.python.vision.core import image as image_lib
 except Exception:
     vision = None
     BaseOptions = None
-    image_lib = None
 
 from .detector import Detector
 from .dtos import DetectionBox
@@ -53,7 +52,7 @@ class MediaPipeDetector(Detector):
         self.min_tracking_confidence = min_tracking_confidence
         self._landmarker = None
 
-        if vision is None or BaseOptions is None or image_lib is None:
+        if vision is None or BaseOptions is None:
             raise ImportError("mediapipe.tasks.python.vision is required for MediaPipeDetector")
 
         # Determine model path (expect a .task file provided in models/)
@@ -88,8 +87,8 @@ class MediaPipeDetector(Detector):
         # Convert BGR to RGB
         rgb = frame[:, :, ::-1]
 
-        # Create MediaPipe image using tasks' image lib
-        mp_image = image_lib.Image(image_lib.ImageFormat.SRGB, rgb)
+        # Create MediaPipe image
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
 
         # Run detection depending on running mode
         if getattr(self, "_running_mode", None) == vision.RunningMode.VIDEO:

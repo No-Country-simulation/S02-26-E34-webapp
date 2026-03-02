@@ -27,13 +27,32 @@ from .subtitle_generator import subtitle_generator_service
 from .branding_service import branding_service
 from .metadata_extractor import extract_video_metadata, validate_video_file
 from .thumbnail_generator import generate_thumbnail, generate_preview_gif
-from .quality_control_service import QualityControlService
 from .statistics_service import StatisticsService
 from .categorization_service import CategorizationService
+from .transcription_service import transcription_service
+from .llm_service import llm_service
+
+# Importar Core para tracking dinámico
+from core.hybrid_tracker import HybridTrackerEngine
+from core.dtos import AnalysisRequest, VideoMetadata, SelectionRect
+from core.stabilizer import Stabilizer
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# --- ESTÁNDARES PROFESIONALES PARA TIKTOK/REELS/SHORTS ---
+SOCIAL_MEDIA_PARAMS = {
+    "vcodec": "libx264",
+    "preset": "slow",
+    "crf": 18,                # Calidad visual sin pérdida
+    "pix_fmt": "yuv420p",     # Colores compatibles con móviles
+    "r": 30,                  # 30 FPS constantes
+    "acodec": "aac",
+    "audio_bitrate": "256k",
+    "ar": 48000,              # Audio profesional
+    "movflags": "+faststart"  # Optimización para carga rápida web
+}
 
 # Inicializar Celery
 celery_app = celery.Celery('video_processor')
@@ -57,6 +76,15 @@ async def process_video_task(video_id: str):
         if not video_record:
             raise ValueError(f"Video con ID {video_id} no encontrado en la base de datos")
 
+        # Obtener la ruta del archivo original
+        input_file = video_record.get("original_file_path")
+        if not input_file or not os.path.exists(input_file):
+            # Intentar con file_path si original_file_path no está disponible
+            input_file = video_record.get("file_path")
+            
+        if not input_file or not os.path.exists(input_file):
+            raise ValueError(f"Archivo de video original no encontrado: {input_file}")
+
         # Actualizar estado a 'processing'
         await db.videos.update_one(
             {"_id": video_record["_id"]},
@@ -67,29 +95,68 @@ async def process_video_task(video_id: str):
             }}
         )
 
-        # Convertir video de 16:9 a 9:16
-        input_file = video_record.get("original_file_path") or video_record.get("file_path")
-        if not input_file:
-             raise ValueError(f"No se encontró la ruta del archivo original para el video {video_id}")
-             
-        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 10, "status_message": "Convirtiendo a formato vertical (9:16)..."}})
-        output_path = convert_to_vertical(input_file, video_id)
+        # 2. Transcribir contenido con Whisper AI
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 10, "status_message": "Transcribiendo contenido con Whisper AI..."}})
+        transcription_data = transcription_service.transcribe(input_file)
         
-        # Aplicar recorte inteligente basado en IA si se detectan objetos relevantes
-        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 30, "status_message": "Analizando contenido con IA para recorte inteligente..."}})
-        output_path = apply_smart_crop(output_path, video_id)
+        # 3. Analizar momentos virales con Gemini
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"transcription": transcription_data, "progress": 20, "status_message": "Analizando momentos virales con IA..."}})
+        viral_clips = llm_service.find_viral_moments(transcription_data)
+        
+        if not viral_clips:
+            # Fallback si el LLM no devuelve nada: Usar los primeros 30 segundos
+            logger.warning("LLM no devolvió clips. Usando fallback de 30s.")
+            viral_clips = [{"start": 0.0, "end": min(30.0, video_record.get("duration_seconds", 30.0)), "label": "Clip Completo"}]
 
-        # Aplicar subtítulos si es necesario
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"viral_clips": viral_clips, "progress": 30, "status_message": "Generando clips virales con tracking dinámico..."}})
+
+        # 4. Generar clips individuales con Tracking Dinámico (Solo en los segmentos virales)
+        processed_clips = []
+        user_selection = {
+            "selection_cx": video_record.get("selection_cx"),
+            "selection_cy": video_record.get("selection_cy"),
+            "selection_w": video_record.get("selection_w"),
+            "selection_h": video_record.get("selection_h"),
+            "selection_time": video_record.get("selection_time", 0.0)
+        }
+
+        for i, clip in enumerate(viral_clips):
+            clip_msg = f"Procesando clip {i+1}/{len(viral_clips)}: {clip.get('label', 'Viral')}..."
+            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"status_message": clip_msg}})
+            
+            # Cortar y trackear el fragmento
+            clip_path = generate_tracked_clip(input_file, video_id, clip, user_selection, i)
+            if clip_path:
+                processed_clips.append(clip_path)
+
+        if not processed_clips:
+            raise Exception("No se pudo generar ningún clip viral.")
+
+        # 5. Crear el video "Full Edit" (Unión de todos los clips virales)
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 80, "status_message": "Creando montaje final (Full Edit)..."}})
+        output_path = merge_clips(processed_clips, video_id)
+        
+        # 6. Aplicar subtítulos y branding al video final si es necesario
         if video_record.get("add_subtitles"):
-            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 50, "status_message": "Generando subtítulos con Whisper AI..."}})
+            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 85, "status_message": "Generando subtítulos finales..."}})
             output_path = add_subtitles(output_path, video_id)
         
-        # Aplicar branding si es necesario
         if video_record.get("add_branding"):
-            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 70, "status_message": "Aplicando branding y marcas de agua..."}})
+            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 90, "status_message": "Aplicando branding final..."}})
             output_path = add_branding(output_path, video_id)
         
-        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 85, "status_message": "Finalizando y optimizando archivo..."}})
+        # --- NUEVA LÓGICA DE MARCA DE AGUA PARA NO-LOGUEADOS ---
+        if not video_record.get("is_premium", False):
+            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 95, "status_message": "Aplicando marca de agua (Free Tier)..."}})
+            logger.info(f"Usuario no logueado. Aplicando marca de agua verv.io a {video_id}")
+            # Usamos el branding service para poner verv.io en el centro con opacidad suave
+            output_path = branding_service.apply_branding(
+                video_path=output_path,
+                text="verv.io",
+                text_position="center"
+            )
+        
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 98, "status_message": "Finalizando y optimizando archivo..."}})
 
         # Extraer metadatos completos del video procesado
         processed_metadata = extract_video_metadata(output_path)
@@ -167,7 +234,7 @@ async def process_video_task(video_id: str):
 
         # Subir archivo procesado al almacenamiento
         final_object_name = f"processed_videos/{video_id}_converted.mp4"
-        if storage_service.upload_file(output_path, final_object_name):
+        if await storage_service.upload_file(output_path, final_object_name):
             # Actualizar registro con ruta del archivo procesado
             if storage_service.enabled:
                 processed_file_path = f"s3://{storage_service.bucket_name}/{final_object_name}"
@@ -187,8 +254,10 @@ async def process_video_task(video_id: str):
                 }}
             )
 
-            # Eliminar archivos temporales
-            cleanup_temp_files([input_file, output_path])
+            # Eliminar solo archivos temporales generados (no el original si no está en tmp)
+            temp_to_clean = [output_path]
+            # No borrar input_file si es el archivo original del usuario
+            cleanup_temp_files(temp_to_clean)
 
             return {
                 "video_id": video_id,
@@ -270,30 +339,209 @@ def convert_to_vertical(input_path: str, video_id: str) -> str:
 
     return output_path
 
-def apply_smart_crop(video_path: str, video_id: str) -> str:
+def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, Any] = None) -> str:
     """
-    Aplica recorte inteligente basado en detección de rostros/objetos
+    Aplica recorte INTELIGENTE DINÁMICO con seguimiento de sujetos y personas de respaldo.
+    Garantiza formato 9:16 sin distorsión y centrado perfecto.
     """
+    logger.info(f"Iniciando Smart Dynamic Crop para video {video_id}")
+    
+    # 1. Metadatos y Configuración
+    cap = cv2.VideoCapture(video_path)
+    vw = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    vh = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    cap.release()
 
-    # Calcular el recorte óptimo basado en detecciones de objetos
-    x1, y1, x2, y2 = object_detection_service.calculate_optimal_crop(video_path)
+    # Tamaño fijo de renderizado (9:16 real basado en la altura del video)
+    # Esto asegura calidad 1:1 y evita el efecto de "apretado" o zoom artificial
+    render_h = vh
+    render_w = int(vh * (9/16))
+    if render_w > vw:
+        render_w = vw
+        render_h = int(vw * (16/9))
+    
+    # Asegurar dimensiones pares
+    render_w = (render_w // 2) * 2
+    render_h = (render_h // 2) * 2
 
-    storage_path = settings.TMP_DIR
-    output_path = os.path.join(storage_path, f"smart_crop_{video_id}.mp4")
-
-    # Aplicar el recorte usando FFmpeg
+    # 2. Inicializar Detectores y Trackers
+    # Sujeto principal (HybridTracker)
+    stabilizer = Stabilizer(alpha=0.15) 
+    engine = HybridTrackerEngine(stabilizer=stabilizer)
+    
+    # Personas de respaldo (MediaPipe)
     try:
-        stream = ffmpeg.input(video_path)
-        stream = ffmpeg.crop(stream, x1, y1, x2-x1, y2-y1)
-        # Asegurar que el recorte tenga dimensiones pares
-        stream = ffmpeg.filter(stream, 'scale', '(iw/2)*2', '(ih/2)*2')
-        stream = ffmpeg.output(stream, output_path, vcodec='libx264', pix_fmt='yuv420p')
+        mp_detector = MediaPipeDetector()
+    except:
+        logger.warning("MediaPipe no disponible. Fallback a centro absoluto.")
+        mp_detector = None
 
-        ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
+    # Datos de selección
+    sel_data = selection_data or {}
+    sel = SelectionRect(
+        cx=sel_data.get("selection_cx", 0.5),
+        cy=sel_data.get("selection_cy", 0.5),
+        w=sel_data.get("selection_w", 0.3),
+        h=sel_data.get("selection_h", 0.5)
+    )
+    request = AnalysisRequest(
+        video_id=video_id,
+        video_metadata=VideoMetadata(width=vw, height=vh, fps=fps),
+        timestamp_sec=sel_data.get("selection_time", 0.0),
+        selection_rect=sel
+    )
+
+    # 3. Análisis de Sujeto Principal
+    def frames_gen():
+        c = cv2.VideoCapture(video_path)
+        idx = 0
+        while True:
+            r, f = c.read()
+            if not r: break
+            yield idx, idx / fps, f
+            idx += 1
+        c.release()
+
+    logger.info("Analizando sujeto principal...")
+    analysis = engine.analyze(frames_gen(), request)
+    main_crops = analysis.crop_results
+
+    # 4. Renderizado Final con IA de Respaldo (Perfeccionado)
+    storage_path = settings.TMP_DIR
+    tmp_out = os.path.join(storage_path, f"tmp_cv2_{video_id}.mp4")
+    output_path = os.path.join(storage_path, f"smart_crop_{video_id}.mp4")
+    
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    out_video = cv2.VideoWriter(tmp_out, fourcc, fps, (render_w, render_h))
+    
+    cap = cv2.VideoCapture(video_path)
+    f_idx = 0
+    
+    # Memoria de la cámara y persistencia de respaldo
+    cam_x = vw / 2
+    secondary_anchor_x = vw / 2
+    frames_with_secondary = 0
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret: break
+        
+        target_x = cam_x # Inercia
+        
+        # PRIORIDAD 1: Sujeto principal (HybridTracker)
+        if f_idx < len(main_crops) and main_crops[f_idx].subject_detected:
+            box = main_crops[f_idx].detection_box
+            target_x = (box.x1 + box.x2) / 2
+            frames_with_secondary = 0 # Resetear persistencia de respaldo
+        
+        # PRIORIDAD 2: Persona secundaria con persistencia (MediaPipe)
+        elif mp_detector:
+            persons = mp_detector.detect(frame)
+            if persons:
+                # Elegimos a la persona más prominente
+                best_p = max(persons, key=lambda p: (p.x2 - p.x1) * (p.y2 - p.y1))
+                new_secondary_x = (best_p.x1 + best_person.x2) / 2 if 'best_person' in locals() else (best_p.x1 + best_p.x2) / 2
+                
+                # Si es una persona nueva o llevamos poco tiempo, actualizamos el ancla
+                if frames_with_secondary == 0 or abs(new_secondary_x - secondary_anchor_x) > (vw * 0.1):
+                    secondary_anchor_x = new_secondary_x
+                
+                target_x = secondary_anchor_x
+                frames_with_secondary += 1
+            else:
+                frames_with_secondary = max(0, frames_with_secondary - 1)
+        
+        # MOVIMIENTO CINEMATOGRÁFICO:
+        # Detectar si estamos cambiando de "bloque" de persona (salto > 20% del video)
+        if abs(target_x - cam_x) > (vw * 0.2):
+            # Transición fluida pero decidida (Alpha 0.4)
+            cam_x = 0.4 * target_x + 0.6 * cam_x
+        else:
+            # Seguimiento suave (Alpha 0.15) para evitar micro-vibraciones
+            cam_x = 0.15 * target_x + 0.85 * cam_x
+        
+        # Calcular ventana de recorte 9:16 (Fija sobre el eje horizontal)
+        x1 = int(round(cam_x - render_w / 2))
+        y1 = int(round((vh - render_h) / 2))
+        
+        # Ajuste vertical fino: Si el video es muy alto, subir un 5% el recorte
+        # para asegurar que las frentes no se corten en tomas cercanas
+        if vh > render_h:
+            y1 = max(0, y1 - int(vh * 0.05))
+        
+        # Clamping
+        x1 = max(0, min(vw - render_w, x1))
+        y1 = max(0, min(vh - render_h, y1))
+        
+        cropped = frame[y1:y1+render_h, x1:x1+render_w]
+        
+        if cropped.shape[1] != render_w or cropped.shape[0] != render_h:
+            cropped = cv2.resize(cropped, (render_w, render_h), interpolation=cv2.INTER_LANCZOS4)
+            
+        out_video.write(cropped)
+        f_idx += 1
+        
+    cap.release()
+    out_video.release()
+    
+    # 6. Re-inyectar audio usando FFmpeg de forma robusta
+    try:
+        logger.info(f"Combinando video recortado con audio original de: {video_path}")
+        
+        # Verificamos si el video original tiene audio para evitar que FFmpeg falle
+        try:
+            probe = ffmpeg.probe(video_path)
+            has_audio = any(s['codec_type'] == 'audio' for s in probe.get('streams', []))
+        except Exception as probe_err:
+            logger.warning(f"No se pudo analizar el audio de {video_path}: {probe_err}")
+            has_audio = True # Asumimos que tiene por seguridad
+
+        if not has_audio:
+            logger.warning("El video fuente no tiene audio. Saltando re-inyección.")
+            if os.path.exists(tmp_out):
+                if os.path.exists(output_path): os.remove(output_path)
+                os.rename(tmp_out, output_path)
+            return output_path
+
+        # Mapeo explícito: Video del temporal de OpenCV (0:v) y Audio del original (1:a)
+        input_v = ffmpeg.input(tmp_out)
+        input_a = ffmpeg.input(video_path)
+        
+        # Limpiamos los parámetros para evitar duplicados con SOCIAL_MEDIA_PARAMS
+        output_params = SOCIAL_MEDIA_PARAMS.copy()
+        # Eliminamos 'acodec' y 'vcodec' si ya los vamos a pasar explícitos o queremos que se hereden
+        
+        (
+            ffmpeg
+            .output(
+                input_v.video,
+                input_a.audio,
+                output_path,
+                vcodec="libx264",
+                acodec="aac",
+                strict="experimental",
+                shortest=None,
+                pix_fmt="yuv420p",
+                **{"b:a": "192k"} # Bitrate explícito
+            )
+            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        )
+        
+        if os.path.exists(tmp_out): 
+            os.remove(tmp_out)
+            
     except ffmpeg.Error as e:
-        stderr = e.stderr.decode() if e.stderr else "Sin detalles"
-        logger.error(f"Error en FFmpeg durante smart crop: {stderr}")
-        raise
+        stderr = e.stderr.decode() if e.stderr else "Error desconocido de FFmpeg"
+        logger.error(f"FALLO EN FFmpeg AL UNIR AUDIO: {stderr}")
+        # Si falla, intentamos rescatar el video mudo para que el proceso no muera
+        if os.path.exists(tmp_out) and not os.path.exists(output_path):
+            os.rename(tmp_out, output_path)
+    except Exception as e:
+        logger.error(f"Error inesperado en re-inyección de audio: {e}")
+        if os.path.exists(tmp_out) and not os.path.exists(output_path):
+            os.rename(tmp_out, output_path)
 
     return output_path
 
@@ -306,28 +554,45 @@ def add_subtitles(video_path: str, video_id: str) -> str:
     # Generar subtítulos usando Whisper
     subtitles = subtitle_generator_service.generate_subtitles(video_path)
 
+    if not subtitles:
+        logger.warning("No se generaron subtítulos (Whisper no disponible o audio vacío). Saltando paso de quemado de subtítulos.")
+        return video_path
+
     # Crear archivo de subtítulos SRT
     storage_path = settings.TMP_DIR
-    srt_path = os.path.join(storage_path, f"subtitles_{video_id}.srt")
+    srt_path = os.path.normpath(os.path.join(storage_path, f"subtitles_{video_id}.srt"))
     subtitle_generator_service.save_srt_file(subtitles, srt_path)
 
     # Aplicar subtítulos al video usando FFmpeg
-    storage_path = settings.TMP_DIR
     output_path = os.path.join(storage_path, f"subtitled_{video_id}.mp4")
 
     try:
-        stream = ffmpeg.input(video_path)
-        stream = ffmpeg.filter(stream, 'subtitles', srt_path)
-        stream = ffmpeg.output(stream, output_path, vcodec='libx264', pix_fmt='yuv420p')
-
-        ffmpeg.run(stream, overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        # Usar rutas relativas para evitar problemas con C: y escapes en Windows
+        rel_srt_path = os.path.relpath(srt_path)
+        clean_srt_path = rel_srt_path.replace("\\", "/")
+        
+        # IMPORTANTE: Mapear explícitamente video (con filtro) y audio (copia directa)
+        input_stream = ffmpeg.input(video_path)
+        video = input_stream.video.filter("subtitles", filename=clean_srt_path)
+        audio = input_stream.audio
+        
+        (
+            ffmpeg
+            .output(video, audio, output_path, 
+                    vcodec='libx264', 
+                    acodec='copy', # Copiamos el audio sin procesar para mantener calidad y velocidad
+                    pix_fmt='yuv420p')
+            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+        )
     except ffmpeg.Error as e:
         stderr = e.stderr.decode() if e.stderr else "Sin detalles"
         logger.error(f"Error en FFmpeg durante subtítulos: {stderr}")
-        raise
-
-    # Eliminar archivo SRT temporal
-    os.remove(srt_path)
+        # Si falla el quemado de subtítulos, devolvemos el video original sin subtítulos en lugar de fallar todo el proceso
+        return video_path
+    finally:
+        # Eliminar archivo SRT temporal si existe
+        if os.path.exists(srt_path):
+            os.remove(srt_path)
 
     return output_path
 
@@ -347,6 +612,99 @@ def add_branding(video_path: str, video_id: str) -> str:
         logo_path=logo_path if logo_path and os.path.exists(logo_path) else None,
         text=brand_text
     )
+
+    return output_path
+
+def generate_tracked_clip(input_path: str, video_id: str, clip_data: Dict[str, Any], selection: Dict[str, Any], clip_idx: int) -> str:
+    """
+    Extrae un clip temporal del video y le aplica tracking dinámico.
+    """
+    start = clip_data.get("start", 0.0)
+    end = clip_data.get("end", 5.0)
+    duration = end - start
+    
+    storage_path = settings.TMP_DIR
+    temp_clip = os.path.join(storage_path, f"tmp_clip_{video_id}_{clip_idx}.mp4")
+    output_clip = os.path.join(storage_path, f"viral_clip_{video_id}_{clip_idx}.mp4")
+
+    # 1. Extraer fragmento temporal del video original (usando FFmpeg rápido)
+    try:
+        (
+            ffmpeg
+            .input(input_path, ss=start, t=duration)
+            .output(temp_clip, vcodec='libx264', acodec='copy')
+            .run(overwrite_output=True, quiet=True)
+        )
+    except Exception as e:
+        logger.error(f"Error extrayendo fragmento temporal: {e}")
+        return None
+
+    # 2. Aplicar Tracking Dinámico sobre ese fragmento
+    # AJUSTE CRÍTICO: La selección original debe ser relativa al inicio del clip (t=0)
+    # para que el tracker la encuentre de inmediato.
+    adjusted_selection = selection.copy()
+    original_sel_time = selection.get("selection_time", 0.0)
+    
+    # Si la selección ocurrió dentro de este clip, la movemos a su tiempo relativo.
+    # Si fue antes, la ponemos en t=0. Si fue después, t=0 (el tracker la buscará).
+    if original_sel_time >= start and original_sel_time <= end:
+        adjusted_selection["selection_time"] = original_sel_time - start
+    else:
+        adjusted_selection["selection_time"] = 0.0
+
+    unique_id = f"{video_id}_clip_{clip_idx}"
+    cropped_clip = apply_smart_crop(temp_clip, unique_id, adjusted_selection)
+    
+    # 3. Añadir subtítulos al clip individual
+    final_clip = add_subtitles(cropped_clip, unique_id)
+    
+    # --- MARCA DE AGUA EN CLIPS INDIVIDUALES ---
+    if not selection.get("is_premium", False):
+        logger.info(f"Aplicando marca de agua al clip: {unique_id}")
+        final_clip = branding_service.add_text_overlay(
+            final_clip, 
+            text="verv.io", 
+            position="center", 
+            is_watermark=True
+        )
+    
+    # Limpieza: Si final_clip es distinto a cropped_clip, borrar el intermedio
+    if final_clip != cropped_clip and os.path.exists(cropped_clip):
+        os.remove(cropped_clip)
+        
+    if os.path.exists(temp_clip): os.remove(temp_clip)
+    return final_clip
+
+def merge_clips(clip_paths: list, video_id: str) -> str:
+    """
+    Une varios clips de video en uno solo (Full Montage).
+    """
+    if not clip_paths: return None
+    if len(clip_paths) == 1: return clip_paths[0]
+
+    storage_path = settings.TMP_DIR
+    output_path = os.path.join(storage_path, f"full_montage_{video_id}.mp4")
+    
+    # Crear archivo de lista para FFmpeg concat
+    list_path = os.path.join(storage_path, f"list_{video_id}.txt")
+    with open(list_path, 'w') as f:
+        for path in clip_paths:
+            # FFmpeg requiere rutas escapadas en el archivo de texto
+            clean_path = path.replace('\\', '/')
+            f.write(f"file '{clean_path}'\n")
+
+    try:
+        (
+            ffmpeg
+            .input(list_path, format='concat', safe=0)
+            .output(output_path, vcodec='libx264', acodec='aac', audio_bitrate='192k')
+            .run(overwrite_output=True, quiet=True)
+        )
+    except Exception as e:
+        logger.error(f"Error uniendo clips: {e}")
+        return clip_paths[0]
+    finally:
+        if os.path.exists(list_path): os.remove(list_path)
 
     return output_path
 
