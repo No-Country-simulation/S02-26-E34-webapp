@@ -145,7 +145,18 @@ async def process_video_task(video_id: str):
             await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 90, "status_message": "Aplicando branding final..."}})
             output_path = add_branding(output_path, video_id)
         
-        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 85, "status_message": "Finalizando y optimizando archivo..."}})
+        # --- NUEVA LÓGICA DE MARCA DE AGUA PARA NO-LOGUEADOS ---
+        if not video_record.get("is_premium", False):
+            await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 95, "status_message": "Aplicando marca de agua (Free Tier)..."}})
+            logger.info(f"Usuario no logueado. Aplicando marca de agua verv.io a {video_id}")
+            # Usamos el branding service para poner verv.io en el centro con opacidad suave
+            output_path = branding_service.apply_branding(
+                video_path=output_path,
+                text="verv.io",
+                text_position="center"
+            )
+        
+        await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 98, "status_message": "Finalizando y optimizando archivo..."}})
 
         # Extraer metadatos completos del video procesado
         processed_metadata = extract_video_metadata(output_path)
@@ -397,7 +408,7 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     analysis = engine.analyze(frames_gen(), request)
     main_crops = analysis.crop_results
 
-    # 4. Renderizado Final con IA de Respaldo (Alta Fidelidad)
+    # 4. Renderizado Final con IA de Respaldo (Perfeccionado)
     storage_path = settings.TMP_DIR
     tmp_out = os.path.join(storage_path, f"tmp_cv2_{video_id}.mp4")
     output_path = os.path.join(storage_path, f"smart_crop_{video_id}.mp4")
@@ -408,39 +419,57 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     cap = cv2.VideoCapture(video_path)
     f_idx = 0
     
-    # Memoria de la cámara (Seguimiento ultra-reactivo)
+    # Memoria de la cámara y persistencia de respaldo
     cam_x = vw / 2
+    secondary_anchor_x = vw / 2
+    frames_with_secondary = 0
     
     while True:
         ret, frame = cap.read()
         if not ret: break
         
-        target_x = cam_x # Por defecto mantener última posición
+        target_x = cam_x # Inercia
         
-        # PRIORIDAD 1: Sujeto principal seleccionado (HybridTracker)
+        # PRIORIDAD 1: Sujeto principal (HybridTracker)
         if f_idx < len(main_crops) and main_crops[f_idx].subject_detected:
             box = main_crops[f_idx].detection_box
             target_x = (box.x1 + box.x2) / 2
+            frames_with_secondary = 0 # Resetear persistencia de respaldo
         
-        # PRIORIDAD 2: Si se perdió el sujeto, buscar a cualquier persona (MediaPipe)
+        # PRIORIDAD 2: Persona secundaria con persistencia (MediaPipe)
         elif mp_detector:
             persons = mp_detector.detect(frame)
             if persons:
-                # Elegimos a la persona más grande/prominente
-                best_person = max(persons, key=lambda p: (p.x2 - p.x1) * (p.y2 - p.y1))
-                target_x = (best_person.x1 + best_person.x2) / 2
+                # Elegimos a la persona más prominente
+                best_p = max(persons, key=lambda p: (p.x2 - p.x1) * (p.y2 - p.y1))
+                new_secondary_x = (best_p.x1 + best_person.x2) / 2 if 'best_person' in locals() else (best_p.x1 + best_p.x2) / 2
+                
+                # Si es una persona nueva o llevamos poco tiempo, actualizamos el ancla
+                if frames_with_secondary == 0 or abs(new_secondary_x - secondary_anchor_x) > (vw * 0.1):
+                    secondary_anchor_x = new_secondary_x
+                
+                target_x = secondary_anchor_x
+                frames_with_secondary += 1
+            else:
+                frames_with_secondary = max(0, frames_with_secondary - 1)
         
-        # DETECCIÓN DE CORTE BRUSCO: Si el objetivo salta más del 30% del ancho del video
-        # reseteamos el suavizado para posicionar la cámara instantáneamente
-        if abs(target_x - cam_x) > (vw * 0.3):
-            cam_x = target_x
+        # MOVIMIENTO CINEMATOGRÁFICO:
+        # Detectar si estamos cambiando de "bloque" de persona (salto > 20% del video)
+        if abs(target_x - cam_x) > (vw * 0.2):
+            # Transición fluida pero decidida (Alpha 0.4)
+            cam_x = 0.4 * target_x + 0.6 * cam_x
         else:
-            # Suavizado de la cámara reactivo (Alpha = 0.6)
-            cam_x = 0.6 * target_x + 0.4 * cam_x
+            # Seguimiento suave (Alpha 0.15) para evitar micro-vibraciones
+            cam_x = 0.15 * target_x + 0.85 * cam_x
         
         # Calcular ventana de recorte 9:16 (Fija sobre el eje horizontal)
         x1 = int(round(cam_x - render_w / 2))
         y1 = int(round((vh - render_h) / 2))
+        
+        # Ajuste vertical fino: Si el video es muy alto, subir un 5% el recorte
+        # para asegurar que las frentes no se corten en tomas cercanas
+        if vh > render_h:
+            y1 = max(0, y1 - int(vh * 0.05))
         
         # Clamping
         x1 = max(0, min(vw - render_w, x1))
@@ -628,6 +657,16 @@ def generate_tracked_clip(input_path: str, video_id: str, clip_data: Dict[str, A
     
     # 3. Añadir subtítulos al clip individual
     final_clip = add_subtitles(cropped_clip, unique_id)
+    
+    # --- MARCA DE AGUA EN CLIPS INDIVIDUALES ---
+    if not selection.get("is_premium", False):
+        logger.info(f"Aplicando marca de agua al clip: {unique_id}")
+        final_clip = branding_service.add_text_overlay(
+            final_clip, 
+            text="verv.io", 
+            position="center", 
+            is_watermark=True
+        )
     
     # Limpieza: Si final_clip es distinto a cropped_clip, borrar el intermedio
     if final_clip != cropped_clip and os.path.exists(cropped_clip):

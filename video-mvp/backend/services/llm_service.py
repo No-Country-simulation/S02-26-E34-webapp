@@ -43,14 +43,34 @@ class LLMService:
             formatted_transcript += f"[{s['start']:.2f} - {s['end']:.2f}] {s['text']}\n"
 
         prompt = f"""
-Eres un editor experto de TikTok/Reels. Analiza esta transcripción y selecciona los 3 mejores momentos VIRALES.
-REGLAS:
-1. Los clips deben ser de diferentes partes del video (no solapados).
-2. Duración por clip: entre 10 y 30 segundos.
-3. Devuelve un JSON con esta estructura: {{"clips": [{{"start": float, "end": float, "label": str, "viral_reason": str}}]}}
+Eres un Estratega de Contenido Viral y Editor Jefe para TikTok, Reels y Shorts con años de experiencia en retención de audiencia. 
+Tu misión es analizar la siguiente transcripción y extraer los 3 momentos con mayor potencial de hacerse virales.
 
-TRANSCRIPCIÓN:
+Para cada clip, debes garantizar esta estructura narrativa:
+1. EL GANCHO (Hook): El inicio del clip debe ser impactante, una pregunta provocativa o una declaración fuerte que detenga el scroll en los primeros 3 segundos.
+2. EL DESARROLLO (Body): El núcleo del clip debe entregar valor, humor o información clave de forma rápida y fluida.
+3. EL CIERRE (Payoff/Loop): El clip debe terminar en un punto climático, una resolución satisfactoria o una frase que invite a ver el video de nuevo.
+
+REGLAS ESTRICTAS:
+- DURACIÓN: Cada clip debe durar entre 15 y 55 segundos.
+- INTEGRIDAD: Ajusta los tiempos de inicio (start) y fin (end) para que NO se corten palabras ni oraciones a la mitad. Busca silencios naturales.
+- AUTONOMÍA: Cada clip debe ser autocontenido y entenderse perfectamente sin ver el resto del video.
+- FORMATO: Devuelve ÚNICAMENTE un objeto JSON válido.
+
+TRANSCRIPCIÓN CON MARCAS DE TIEMPO:
 {formatted_transcript}
+
+RESPUESTA JSON ESPERADA:
+{{
+  "clips": [
+    {{
+      "start": float, 
+      "end": float, 
+      "label": "Título viral (ej: El secreto de X)", 
+      "viral_reason": "Explicación breve de la estructura: Gancho [tipo] + Valor [tema] + Cierre [tipo]"
+    }}
+  ]
+}}
 """
 
         try:

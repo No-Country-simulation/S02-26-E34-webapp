@@ -16,7 +16,7 @@ from config.settings import settings
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
 
-async def run_full_test(video_path, sel_cx=0.5, sel_cy=0.5, sel_w=0.4, sel_h=0.7, sel_time=0.0):
+async def run_full_test(video_path, sel_cx=0.5, sel_cy=0.5, sel_w=0.4, sel_h=0.7, sel_time=0.0, is_premium=False):
     """
     Simula el proceso completo desde la subida hasta el video final.
     """
@@ -29,7 +29,7 @@ async def run_full_test(video_path, sel_cx=0.5, sel_cy=0.5, sel_w=0.4, sel_h=0.7
     await global_db.connect()
     
     # 2. Crear registro en la base de datos (Simular subida)
-    logger.info("--- PASO 1: Creando registro de video en MongoDB ---")
+    logger.info(f"--- PASO 1: Creando registro de video en MongoDB (Premium: {is_premium}) ---")
     db = global_db.get_database()
     
     video_id = str(ObjectId())
@@ -40,6 +40,7 @@ async def run_full_test(video_path, sel_cx=0.5, sel_cy=0.5, sel_w=0.4, sel_h=0.7
         "status": "uploaded",
         "add_subtitles": True,
         "add_branding": False,
+        "is_premium": is_premium, # Usar el valor del test
         "selection_cx": sel_cx,
         "selection_cy": sel_cy,
         "selection_w": sel_w,
@@ -79,6 +80,7 @@ def build_parser():
     p.add_argument("--w", "--sel-w", type=float, default=0.3, help="Ancho de selección (0.0 a 1.0)")
     p.add_argument("--h", "--sel-h", type=float, default=0.5, help="Alto de selección (0.0 a 1.0)")
     p.add_argument("--time", "--sel-time", type=float, default=0.0, help="Segundo en el que se hizo la selección")
+    p.add_argument("--premium", action="store_true", help="Simular usuario logueado (sin marca de agua)")
     return p
 
 if __name__ == "__main__":
@@ -92,5 +94,6 @@ if __name__ == "__main__":
         sel_cy=args.cy,
         sel_w=args.w,
         sel_h=args.h,
-        sel_time=args.time
+        sel_time=args.time,
+        is_premium=args.premium
     ))
