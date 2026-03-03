@@ -34,12 +34,12 @@ video-mvp/
 
 ```bash
 cd video-mvp/backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
 cp .env.example .env
-python main.py
+uv sync
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+Compatibilidad (opcional): también podés correr `uv run python main.py`.
 
 ### 2) Frontend
 

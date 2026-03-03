@@ -31,32 +31,78 @@ Backend de Verv.io para autenticación, gestión de usuarios, carga/procesamient
 cd video-mvp/backend
 ```
 
-2. Crear y activar entorno virtual:
+2. Sincronizar dependencias con UV:
 
 ```bash
-python -m venv .venv
+uv sync
+```
+
+Instalación 100% reproducible (recomendada para clonado en otro equipo):
+
+```bash
+uv venv
 source .venv/bin/activate
+uv pip sync requirements.txt
 ```
 
-3. Instalar dependencias:
+> Evitar mezclar instalaciones manuales (`pip install ...`) fuera de `pyproject.toml` / `requirements.txt`, porque puede romper compatibilidades de FastAPI/Pydantic.
 
-```bash
-pip install -r requirements.txt
-```
-
-4. Variables de entorno:
+3. Variables de entorno:
 
 ```bash
 cp .env.example .env
 ```
 
-5. Ejecutar API:
+4. Ejecutar API (modo recomendado FastAPI/ASGI):
 
 ```bash
-python main.py
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
 > Por defecto corre en `http://localhost:8000`.
+
+5. Ejecutar API (modo compatible):
+
+```bash
+uv run python main.py
+```
+
+> Recomendado para desarrollo y despliegue: `uv run uvicorn app.main:app ...` usa directamente el entrypoint real en `app/main.py`.
+
+## 🗂️ Estructura (alineada a FastAPI)
+
+- `app/`: código principal de la API (`api`, `core`, `models`, `schemas`, `services`, `repositories`, `middleware`, `utils`, `main.py`).
+- `scripts/`: utilidades operativas (seed, debug, inicialización y helpers).
+- `main.py`: wrapper de compatibilidad para ejecutar la app desde la raíz del backend.
+
+## 🧪 Scripts operativos
+
+```bash
+uv run python scripts/seed_admin.py
+uv run python scripts/database_init.py
+uv run python scripts/check_gemini_models.py
+uv run python scripts/verify_environment.py
+```
+
+## ✅ Verificación rápida post-clone
+
+1. Verificar imports críticos y runtime OpenCV:
+
+```bash
+uv run python scripts/verify_environment.py
+```
+
+2. Verificar backend levantado desde main:
+
+```bash
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
+curl http://127.0.0.1:8000/health
+```
+
+## 🧩 Dependencias del sistema (Linux)
+
+- `ffmpeg` y `ffprobe` deben estar instalados en el sistema.
+- Sin esas herramientas, fallan validación de duración, preview y procesamiento de video.
 
 ## 🔑 Endpoints principales
 
