@@ -1,58 +1,78 @@
-# Verv.io - Video Editor Frontend (Next.js)
+# Verv.io - Frontend (Next.js)
 
-El frontend de Verv.io es una aplicación web moderna construida con **Next.js 16** y **React 19**, diseñada para ofrecer una experiencia de usuario fluida y receptiva.
+Aplicación web de Verv.io construida con Next.js para autenticación, edición visual y seguimiento del procesamiento de videos 16:9 → 9:16.
 
-## 🚀 Características del Frontend
+## 🚀 Qué está implementado hoy
 
-- **Editor Interactivo**: Previsualización en tiempo real del reencuadre vertical (9:16).
-- **Responsive Design**: Optimizado para desktop y mobile.
-- **Modo Oscuro/Claro**: Soporte completo para temas, con detección automática.
-- **Autenticación**: Integración con Google Sign-In y Email/Password.
-- **Gestión de Estado**: Uso de Zustand para un estado global ligero y eficiente.
-- **Animaciones**: Microprocesos y transiciones con Framer Motion.
-- **Métricas y Estadísticas**: Tableros visuales para el seguimiento del uso.
+- **Landing + onboarding** con tutorial inicial y feedback.
+- **Auth dual**: login/registro con email + contraseña y login con Google.
+- **Refresh de sesión** para mantener tokens actualizados en cliente.
+- **Editor avanzado** con:
+  - carga de video (`.mp4`),
+  - selección 9:16 ajustable,
+  - trim de clip,
+  - opciones de subtítulos y branding,
+  - polling de progreso y descarga al finalizar.
+- **Paneles de usuario**: perfil editable, actividad reciente y estadísticas.
+- **Panel admin** para gestión de usuarios (aprobar/rechazar/promover/editar/desactivar).
+- **Estado de backend** visible desde la UI.
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Stack
 
-- **Framework**: Next.js 16 (App Router & Server Components)
-- **Lógica**: React 19 (Hooks, Context, Suspense)
-- **Lenguaje**: TypeScript
-- **Estilos**: Tailwind CSS v4 (Uso extensivo de variables CSS y performance mejorada)
-- **Iconos**: Lucide React
-- **Estado**: Zustand
-- **Video**: Video.js para reproducción y previsualización.
-- **Alertas**: SweetAlert2
+- Next.js 16 + React 19 + TypeScript
+- Tailwind CSS v4
+- Zustand
+- Axios + Fetch API
+- Lucide React
+- SweetAlert2
+- Framer Motion
 
-## 📦 Instalación
+## 📦 Setup local
 
-1. Navega al directorio del frontend:
-   ```bash
-   cd video-mvp/frontend
-   ```
+1. Ir al frontend:
 
-2. Instala las dependencias:
-   ```bash
-   npm install
-   ```
+```bash
+cd video-mvp/frontend
+```
 
-3. (Opcional) Crea un archivo `.env.local` basado en `.env.example`.
+2. Instalar dependencias:
 
-## 🎨 Desarrollo
+```bash
+npm install
+```
 
-Para iniciar el servidor de desarrollo:
+3. Crear entorno local:
+
+```bash
+cp .env.example .env.local
+```
+
+4. Ejecutar en desarrollo:
+
 ```bash
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:3000`.
+App disponible en `http://localhost:3000`.
 
-## 📁 Estructura de Carpetas
+## 🔌 Integración con backend
 
-- `app/`: Rutas de Next.js (Home, Auth, Editor, Profile, Stats, Admin).
-- `components/`: Componentes React reutilizables (Header, Footer, CookieConsent, Modales).
-- `lib/`: Utilidades, hooks personalizados y configuración de Zustand.
-- `public/`: Assets estáticos, logos e imágenes.
-- `styles/`: Archivos globales de Tailwind CSS (`globals.css`).
+- El frontend usa `/api/v1` y en desarrollo aplica rewrite hacia `http://localhost:8000/api/v1` (ver `next.config.ts`).
+- Variables principales:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=...
+NEXT_PUBLIC_MAX_FILE_SIZE_MB=50
+NEXT_PUBLIC_MAX_VIDEO_DURATION_MINUTES=3
+```
+
+## 🗂️ Estructura principal
+
+- `app/`: rutas (`/`, `/auth`, `/editor`, `/profile`, `/stats`, `/admin/users`).
+- `components/`: UI reutilizable y módulos del editor.
+- `lib/`: cliente API, sesión auth, hooks y store global.
+- `data/`: contenido estático usado por la landing.
 
 ---
-Verv.io Frontend - Reimaginando el video vertical.
+Verv.io Frontend - Experiencia completa para convertir y gestionar video vertical.

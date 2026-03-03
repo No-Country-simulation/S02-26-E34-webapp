@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { uploadVideo, checkStatus, API_BASE_URL } from '@/lib/api';
+import { uploadVideo, checkStatus, API_BASE_URL, generatePreview } from '@/lib/api';
 import { useVideoStore } from '@/lib/store';
 import { showError, showSuccess, showInfo } from '@/lib/sweetalert';
 import useBackendStatus from '@/lib/useBackendStatus';
@@ -11,6 +11,7 @@ import FeedbackCollector from '@/components/FeedbackCollector';
 import SourceFrame from '@/components/editor/SourceFrame';
 import OptionsPanel from '@/components/editor/OptionsPanel';
 import PreviewPanel from '@/components/editor/PreviewPanel';
+import TimelinePanel from '@/components/editor/TimelinePanel';
 
 interface SelectionArea {
   x: number;
@@ -27,14 +28,60 @@ interface SelectionArea {
   bottom: number;
 }
 
-const formatSeconds = (seconds: number): string => {
-  const total = Math.max(0, Math.floor(seconds));
-  const minutes = Math.floor(total / 60);
-  const remain = total % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(remain).padStart(2, '0')}`;
-};
+interface EditorSettings {
+  selectionSize: number;
+  cropX: number;
+  cropY: number;
+  showOverlay: boolean;
+  safeZones: boolean;
+  showGrid: boolean;
+  autoTrack: boolean;
+}
 
 const MIN_CLIP_GAP_SECONDS = 1;
+
+const buildSelectionAreaFromSettings = (
+  frameWidth: number,
+  frameHeight: number,
+  settings: Pick<EditorSettings, 'selectionSize' | 'cropX' | 'cropY'>
+): SelectionArea => {
+  const centerX = frameWidth * (settings.cropX / 100);
+  const centerY = frameHeight * (settings.cropY / 100);
+
+  const idealHeight = frameHeight * (settings.selectionSize / 100);
+  const idealWidth = idealHeight * (9 / 16);
+
+  const maxHalfWidthByCenter = Math.min(centerX, frameWidth - centerX);
+  const maxHalfHeightByCenter = Math.min(centerY, frameHeight - centerY);
+  const maxWidthByHorizontal = Math.max(1, maxHalfWidthByCenter * 2);
+  const maxHeightByVertical = Math.max(1, maxHalfHeightByCenter * 2);
+  const maxWidthByVertical = Math.max(1, maxHeightByVertical * (9 / 16));
+  const maxWidth = Math.max(1, Math.min(maxWidthByHorizontal, maxWidthByVertical));
+
+  const minHeight = frameHeight * 0.25;
+  const minWidth = minHeight * (9 / 16);
+
+  const width = Math.min(Math.max(idealWidth, minWidth), maxWidth);
+  const height = width * (16 / 9);
+
+  const x = centerX - width / 2;
+  const y = centerY - height / 2;
+
+  return {
+    x: Math.round(x),
+    y: Math.round(y),
+    width: Math.round(width),
+    height: Math.round(height),
+    frameWidth: Math.round(frameWidth),
+    frameHeight: Math.round(frameHeight),
+    centerX: Math.round(centerX),
+    centerY: Math.round(centerY),
+    left: Math.round(x),
+    top: Math.round(y),
+    right: Math.round(x + width),
+    bottom: Math.round(y + height)
+  };
+};
 
 export default function ImprovedEditorPage() {
   const {
@@ -53,14 +100,13 @@ export default function ImprovedEditorPage() {
   } = useVideoStore();
 
   const [videoFileLocal, setVideoFileLocal] = useState<File | null>(null);
-  const [settings, setSettings] = useState({
+  const [settings, setSettings] = useState<EditorSettings>({
     selectionSize: 100,
-    rotation: 0,
     cropX: 50,
     cropY: 50,
     showOverlay: true,
     safeZones: false,
-    showGrid: true,
+    showGrid: false,
     autoTrack: false
   });
   const [socialConnections, setSocialConnections] = useState({
@@ -70,12 +116,141 @@ export default function ImprovedEditorPage() {
   });
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [selectionArea, setSelectionArea] = useState<SelectionArea | null>(null);
+  const [selectionSyncTick, setSelectionSyncTick] = useState<number>(0);
+  const [generatedPreviewUrl, setGeneratedPreviewUrl] = useState<string | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState<boolean>(false);
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [clipStart, setClipStart] = useState<number>(0);
   const [clipEnd, setClipEnd] = useState<number>(0);
+  const [isClipPlaying, setIsClipPlaying] = useState<boolean>(false);
+  const [playheadTime, setPlayheadTime] = useState<number>(0);
+  const selectionAreaRef = useRef<SelectionArea | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const previewVideoRef = useRef<HTMLVideoElement>(null);
   const { isOnline: isBackendOnline } = useBackendStatus();
+
+  const syncVideosToTime = useCallback((time: number) => {
+    if (videoRef.current) {
+      videoRef.current.currentTime = time;
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.currentTime = time;
+    }
+    setPlayheadTime(time);
+  }, []);
+
+  const pauseClipPlayback = useCallback(() => {
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
+    if (previewVideoRef.current) {
+      previewVideoRef.current.pause();
+    }
+    setIsClipPlaying(false);
+  }, []);
+
+  const playSelectedRange = useCallback(async () => {
+    if (!videoUrl || clipEnd <= clipStart) return;
+
+    if (isClipPlaying) return;
+
+    const currentTime = videoRef.current?.currentTime ?? previewVideoRef.current?.currentTime ?? clipStart;
+    const resumeTime = currentTime >= clipStart && currentTime < clipEnd ? currentTime : clipStart;
+    syncVideosToTime(resumeTime);
+
+    const playPromises: Promise<void>[] = [];
+    if (videoRef.current) {
+      playPromises.push(videoRef.current.play());
+    }
+    if (previewVideoRef.current) {
+      playPromises.push(previewVideoRef.current.play());
+    }
+
+    if (playPromises.length === 0) return;
+
+    await Promise.allSettled(playPromises);
+    setIsClipPlaying(true);
+  }, [videoUrl, clipStart, clipEnd, isClipPlaying, syncVideosToTime]);
+
+  const stopClipPlayback = useCallback(() => {
+    pauseClipPlayback();
+    syncVideosToTime(clipStart);
+  }, [pauseClipPlayback, syncVideosToTime, clipStart]);
+
+  const resetEditorForNewVideo = useCallback(() => {
+    pauseClipPlayback();
+    if (generatedPreviewUrl) {
+      URL.revokeObjectURL(generatedPreviewUrl);
+    }
+    setGeneratedPreviewUrl(null);
+    setIsGeneratingPreview(false);
+    setConvertedUrl(null);
+    setIsProcessing(false);
+    setProgress(0);
+    setVideoId(null);
+    setSettings({
+      selectionSize: 100,
+      cropX: 50,
+      cropY: 50,
+      showOverlay: true,
+      safeZones: false,
+      showGrid: false,
+      autoTrack: false
+    });
+    setSelectionArea(null);
+    setSelectionSyncTick(prev => prev + 1);
+    setVideoDuration(0);
+    setClipStart(0);
+    setClipEnd(0);
+    setPlayheadTime(0);
+    setIsClipPlaying(false);
+  }, [generatedPreviewUrl, pauseClipPlayback, setConvertedUrl, setIsProcessing, setProgress, setVideoId]);
+
+  const handleGeneratePreview = useCallback(async () => {
+    if (!videoFileLocal || isGeneratingPreview) return;
+
+    if (clipEnd <= clipStart) {
+      showError('Rango inválido', 'El tiempo de fin debe ser mayor al tiempo de inicio.');
+      return;
+    }
+
+    try {
+      setIsGeneratingPreview(true);
+
+      const selectionCx = settings.cropX / 100;
+      const selectionCy = settings.cropY / 100;
+      const selectionW = selectionArea && selectionArea.frameWidth > 0
+        ? selectionArea.width / selectionArea.frameWidth
+        : 0.3;
+      const selectionH = selectionArea && selectionArea.frameHeight > 0
+        ? selectionArea.height / selectionArea.frameHeight
+        : 0.5;
+
+      const previewBlob = await generatePreview(videoFileLocal, {
+        startTime: clipStart,
+        endTime: clipEnd,
+        selectionCx: Math.max(0, Math.min(1, selectionCx)),
+        selectionCy: Math.max(0, Math.min(1, selectionCy)),
+        selectionW: Math.max(0.05, Math.min(1, selectionW)),
+        selectionH: Math.max(0.05, Math.min(1, selectionH)),
+        selectionTime: playheadTime
+      });
+
+      const nextPreviewUrl = URL.createObjectURL(previewBlob);
+      setGeneratedPreviewUrl(prev => {
+        if (prev) {
+          URL.revokeObjectURL(prev);
+        }
+        return nextPreviewUrl;
+      });
+    } catch (error) {
+      console.error('Error generating preview:', error);
+      showError('Error en preview', 'No se pudo generar la previsualización.');
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  }, [videoFileLocal, isGeneratingPreview, clipEnd, clipStart, settings.cropX, settings.cropY, selectionArea, playheadTime]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -101,13 +276,14 @@ export default function ImprovedEditorPage() {
           setVideoUrl(null);
           return;
         }
+        resetEditorForNewVideo();
         setVideoFileLocal(file);
         const url = URL.createObjectURL(file);
         setVideoUrl(url);
       };
       videoElement.src = URL.createObjectURL(file);
     }
-  }, [setVideoUrl]);
+  }, [resetEditorForNewVideo, setVideoUrl]);
 
   const handleConvert = async () => {
     if (!videoFileLocal) return;
@@ -130,7 +306,6 @@ export default function ImprovedEditorPage() {
       const enhancedOptions = {
         ...options,
         selectionSize: settings.selectionSize,
-        rotation: settings.rotation,
         cropX: settings.cropX,
         cropY: settings.cropY,
         autoTrack: settings.autoTrack,
@@ -199,7 +374,7 @@ export default function ImprovedEditorPage() {
     }
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
     accept: { 'video/mp4': ['.mp4'] },
     maxFiles: 1,
@@ -208,6 +383,11 @@ export default function ImprovedEditorPage() {
   });
 
   const handleReset = useCallback(() => {
+    if (generatedPreviewUrl) {
+      URL.revokeObjectURL(generatedPreviewUrl);
+    }
+    setGeneratedPreviewUrl(null);
+    setIsGeneratingPreview(false);
     setVideoFileLocal(null);
     setVideoUrl(null);
     setConvertedUrl(null);
@@ -215,19 +395,47 @@ export default function ImprovedEditorPage() {
     setProgress(0);
     setSettings({
       selectionSize: 100,
-      rotation: 0,
       cropX: 50,
       cropY: 50,
       showOverlay: true,
       safeZones: false,
-      showGrid: true,
+      showGrid: false,
       autoTrack: false
     });
     setSelectionArea(null);
     setVideoDuration(0);
     setClipStart(0);
     setClipEnd(0);
-  }, [setVideoUrl, setConvertedUrl, setIsProcessing, setProgress]);
+    setPlayheadTime(0);
+    setIsClipPlaying(false);
+  }, [generatedPreviewUrl, setVideoUrl, setConvertedUrl, setIsProcessing, setProgress]);
+
+  useEffect(() => {
+    selectionAreaRef.current = selectionArea;
+  }, [selectionArea]);
+
+  useEffect(() => {
+    const currentSelection = selectionAreaRef.current;
+    if (!currentSelection) return;
+
+    const nextSelection = buildSelectionAreaFromSettings(
+      currentSelection.frameWidth,
+      currentSelection.frameHeight,
+      settings
+    );
+
+    setSelectionArea(prev => {
+      if (!prev) return nextSelection;
+
+      const isSame =
+        prev.x === nextSelection.x &&
+        prev.y === nextSelection.y &&
+        prev.width === nextSelection.width &&
+        prev.height === nextSelection.height;
+
+      return isSame ? prev : nextSelection;
+    });
+  }, [settings.selectionSize, settings.cropX, settings.cropY]);
 
   useEffect(() => {
     if (isBackendOnline === false) {
@@ -238,7 +446,33 @@ export default function ImprovedEditorPage() {
   useEffect(() => {
     const fetchSocialConnections = async () => {
       try {
-        const res = await fetch(`${API_BASE_URL}/users/me`);
+        const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+        const accessToken = userStr ? JSON.parse(userStr)?.access_token : null;
+
+        if (!accessToken) {
+          setSocialConnections({
+            tiktok: { connected: false },
+            instagram: { connected: false },
+            youtube: { connected: false }
+          });
+          return;
+        }
+
+        const res = await fetch(`${API_BASE_URL}/users/me`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+
+        if (res.status === 401 || res.status === 403) {
+          setSocialConnections({
+            tiktok: { connected: false },
+            instagram: { connected: false },
+            youtube: { connected: false }
+          });
+          return;
+        }
+
         if (res.ok) {
           const data = await res.json();
           if (data.social_connections) {
@@ -254,8 +488,34 @@ export default function ImprovedEditorPage() {
     }
   }, [isBackendOnline]);
 
-  const handleSettingChange = (setting: keyof typeof settings, value: any) => {
-    setSettings(prev => ({ ...prev, [setting]: value }));
+  const applySettings = (updater: (prev: EditorSettings) => EditorSettings) => {
+    setSettings(prev => updater(prev));
+  };
+
+  const handleSettingChange = (setting: keyof EditorSettings, value: any) => {
+    applySettings(prev => ({ ...prev, [setting]: value }));
+  };
+
+  const handleResetSelectionSize = () => {
+    applySettings(prev => ({ ...prev, selectionSize: 100 }));
+    setSelectionSyncTick(prev => prev + 1);
+  };
+
+  const handleCenterSelectionFrame = () => {
+    applySettings(prev => ({ ...prev, cropX: 50, cropY: 50 }));
+    setSelectionSyncTick(prev => prev + 1);
+  };
+
+  const handleClipStartChange = (nextStart: number) => {
+    const boundedStart = Math.min(nextStart, Math.max(0, clipEnd - MIN_CLIP_GAP_SECONDS));
+    setClipStart(boundedStart);
+    if (!isClipPlaying) {
+      syncVideosToTime(boundedStart);
+    }
+  };
+
+  const handleClipEndChange = (nextEnd: number) => {
+    setClipEnd(Math.max(nextEnd, Math.min(videoDuration || 0, clipStart + MIN_CLIP_GAP_SECONDS)));
   };
 
   useEffect(() => {
@@ -272,6 +532,7 @@ export default function ImprovedEditorPage() {
       setVideoDuration(duration);
       setClipStart(0);
       setClipEnd(duration);
+      setPlayheadTime(0);
     };
 
     currentVideo.addEventListener('loadedmetadata', onMetadata);
@@ -285,6 +546,52 @@ export default function ImprovedEditorPage() {
     };
   }, [videoUrl]);
 
+  useEffect(() => {
+    if (!isClipPlaying) return;
+
+    let rafId = 0;
+
+    const tick = () => {
+      const sourceVideo = videoRef.current;
+      const previewVideo = previewVideoRef.current;
+
+      const currentTime = sourceVideo?.currentTime ?? previewVideo?.currentTime ?? 0;
+      setPlayheadTime(currentTime);
+
+      if (sourceVideo && previewVideo && Math.abs(sourceVideo.currentTime - previewVideo.currentTime) > 0.12) {
+        previewVideo.currentTime = sourceVideo.currentTime;
+      }
+
+      if (currentTime >= clipEnd) {
+        pauseClipPlayback();
+        syncVideosToTime(clipEnd);
+        return;
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+
+    return () => {
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [isClipPlaying, clipEnd, pauseClipPlayback, syncVideosToTime]);
+
+  useEffect(() => {
+    if (!videoUrl) {
+      pauseClipPlayback();
+    }
+  }, [videoUrl, pauseClipPlayback]);
+
+  useEffect(() => {
+    return () => {
+      if (generatedPreviewUrl) {
+        URL.revokeObjectURL(generatedPreviewUrl);
+      }
+    };
+  }, [generatedPreviewUrl]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] text-white overflow-x-hidden font-sans">
       <main className="flex-1 flex flex-col lg:flex-row gap-8 p-8 max-w-400 mx-auto w-full">
@@ -297,14 +604,32 @@ export default function ImprovedEditorPage() {
             isBackendOnline={isBackendOnline}
             settings={settings}
             onCropXChange={(value) => handleSettingChange('cropX', value)}
+            onCropYChange={(value) => handleSettingChange('cropY', value)}
+            onSelectionSizeChange={(value) => handleSettingChange('selectionSize', value)}
             onSelectionAreaChange={setSelectionArea}
             videoRef={videoRef}
             getRootProps={getRootProps}
             getInputProps={getInputProps}
             isDragActive={isDragActive}
+            selectionSyncTick={selectionSyncTick}
           />
 
-          {/* Section 2: Options Panel */}
+          {/* Section 2: Timeline Panel */}
+          <TimelinePanel
+            videoUrl={videoUrl}
+            videoDuration={videoDuration}
+            clipStart={clipStart}
+            clipEnd={clipEnd}
+            isClipPlaying={isClipPlaying}
+            playheadTime={playheadTime}
+            onPlay={playSelectedRange}
+            onPause={pauseClipPlayback}
+            onStop={stopClipPlayback}
+            onClipStartChange={handleClipStartChange}
+            onClipEndChange={handleClipEndChange}
+          />
+
+          {/* Section 3: Options Panel */}
           <OptionsPanel
             videoUrl={videoUrl}
             isBackendOnline={isBackendOnline}
@@ -314,68 +639,11 @@ export default function ImprovedEditorPage() {
             options={options}
             onConvert={handleConvert}
             onReset={handleReset}
+            onOpenFileDialog={open}
+            onResetSelectionSize={handleResetSelectionSize}
+            onCenterSelectionFrame={handleCenterSelectionFrame}
             onSettingChange={handleSettingChange}
           />
-
-          {/* Section 3: Timeline Placeholder */}
-          <section className="p-6 bg-[#0F0F15] rounded-3xl border border-white/5 flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-1.5 bg-[#3b2bee]/20 rounded-md">
-                  <svg className="w-4 h-4 text-[#3b2bee]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <h2 className="text-sm font-black uppercase tracking-widest">Línea de Tiempo</h2>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {formatSeconds(clipStart)} - {formatSeconds(clipEnd)} / {formatSeconds(videoDuration)}
-              </div>
-            </div>
-            <div className="h-32 bg-black/40 rounded-2xl border border-white/5 relative overflow-hidden p-4 flex flex-col justify-center gap-4">
-              <div className="relative h-3 rounded-full bg-white/10">
-                <div
-                  className="absolute top-0 h-3 rounded-full bg-[#3b2bee]/50"
-                  style={{
-                    left: `${videoDuration > 0 ? (clipStart / videoDuration) * 100 : 0}%`,
-                    width: `${videoDuration > 0 ? ((clipEnd - clipStart) / videoDuration) * 100 : 0}%`
-                  }}
-                ></div>
-              </div>
-
-              <div className={`relative ${!videoUrl ? 'opacity-40 pointer-events-none' : ''}`}>
-                <input
-                  type="range"
-                  min={0}
-                  max={videoDuration || 0}
-                  step={1}
-                  value={clipStart}
-                  onChange={(event) => {
-                    const nextStart = Math.round(Number(event.target.value));
-                    setClipStart(Math.min(nextStart, Math.max(0, clipEnd - MIN_CLIP_GAP_SECONDS)));
-                  }}
-                  className="w-full accent-[#3b2bee]"
-                />
-                <input
-                  type="range"
-                  min={0}
-                  max={videoDuration || 0}
-                  step={1}
-                  value={clipEnd}
-                  onChange={(event) => {
-                    const nextEnd = Math.round(Number(event.target.value));
-                    setClipEnd(Math.max(nextEnd, Math.min(videoDuration || 0, clipStart + MIN_CLIP_GAP_SECONDS)));
-                  }}
-                  className="w-full accent-[#3b2bee] mt-2"
-                />
-              </div>
-
-              <div className="flex items-center justify-between text-[10px] font-mono text-slate-500">
-                <span>Inicio: {formatSeconds(clipStart)}</span>
-                <span>Fin: {formatSeconds(clipEnd)}</span>
-              </div>
-            </div>
-          </section>
         </div>
 
         {/* Right Column: Preview & Export */}
@@ -383,10 +651,14 @@ export default function ImprovedEditorPage() {
           <PreviewPanel
             videoUrl={videoUrl}
             convertedUrl={convertedUrl}
+            generatedPreviewUrl={generatedPreviewUrl}
             settings={settings}
             selectionArea={selectionArea}
+            previewVideoRef={previewVideoRef}
             onConvert={handleConvert}
+            onGeneratePreview={handleGeneratePreview}
             isProcessing={isProcessing}
+            isGeneratingPreview={isGeneratingPreview}
             progress={progress}
             videoUrlExist={!!videoUrl}
             isBackendOnline={isBackendOnline}

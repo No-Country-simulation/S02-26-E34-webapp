@@ -3,15 +3,12 @@
 import {
     CloudUpload,
     Settings,
-    Minimize2,
-    Maximize2,
-    RotateCcw,
-    RotateCw,
+    RefreshCw,
+    Crosshair,
 } from 'lucide-react';
 
 interface Settings {
     selectionSize: number;
-    rotation: number;
     cropX: number;
     cropY: number;
     showOverlay: boolean;
@@ -33,6 +30,9 @@ interface OptionsPanelProps {
     options: Options;
     onConvert: () => void;
     onReset: () => void;
+    onOpenFileDialog: () => void;
+    onResetSelectionSize: () => void;
+    onCenterSelectionFrame: () => void;
     onSettingChange: (setting: keyof Settings, value: any) => void;
 }
 
@@ -42,6 +42,9 @@ export default function OptionsPanel({
     isProcessing,
     settings,
     onReset,
+    onOpenFileDialog,
+    onResetSelectionSize,
+    onCenterSelectionFrame,
     onSettingChange,
 }: OptionsPanelProps) {
     return (
@@ -62,7 +65,7 @@ export default function OptionsPanel({
                         <button
                             className={`w-full h-11 rounded-xl font-bold text-xs flex items-center justify-center gap-3 transition-all active:scale-95 ${isBackendOnline === false || isProcessing ? 'bg-white/5 text-slate-700 cursor-not-allowed border border-white/5' : 'bg-[#050505] hover:bg-white/5 text-white border border-white/5 shadow-inner'}`}
                             disabled={isBackendOnline === false || isProcessing}
-                            onClick={() => (document.querySelector('input[type="file"]') as HTMLInputElement)?.click()}
+                            onClick={onOpenFileDialog}
                         >
                             <CloudUpload className="w-4 h-4 text-[#3b2bee]" />
                             {videoUrl ? 'Cambiar Video' : 'Cargar Archivo'}
@@ -70,65 +73,53 @@ export default function OptionsPanel({
                     </div>
                 </div>
 
-                {/* Right Column: Editing Controls (Selection, Rotation, Safe Zones) */}
+                {/* Right Column: Editing Controls (Selection, Grid) */}
                 <div className="space-y-8">
-                    {/* Selection Size Controls */}
+                    {/* Selection Frame Actions */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Tamaño Marco</span>
                             <span className="text-[#3b2bee] font-mono text-[10px] font-black">{settings.selectionSize}%</span>
                         </div>
                         <div className={`flex items-center gap-1.5 transition-opacity ${!videoUrl || isBackendOnline === false || isProcessing ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                            <button
-                                onClick={() => onSettingChange('selectionSize', Math.max(40, settings.selectionSize - 5))}
-                                disabled={!videoUrl || isBackendOnline === false || isProcessing}
-                                className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
-                            >
-                                <Minimize2 className="w-3.5 h-3.5 text-slate-400" />
-                            </button>
-                            <button
-                                onClick={() => onSettingChange('selectionSize', Math.min(100, settings.selectionSize + 5))}
-                                disabled={!videoUrl || isBackendOnline === false || isProcessing}
-                                className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
-                            >
-                                <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
-                            </button>
+                            <div className="relative group">
+                                <button
+                                    onClick={onResetSelectionSize}
+                                    disabled={!videoUrl || isBackendOnline === false || isProcessing}
+                                    title="Restablecer tamaño"
+                                    className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
+                                >
+                                    <RefreshCw className="w-3.5 h-3.5 text-slate-400" />
+                                </button>
+                                <span className="pointer-events-none absolute z-20 top-full mt-1 md:top-auto md:bottom-full md:mb-1 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-[8px] md:text-[9px] font-bold uppercase tracking-wide rounded-md bg-[#050505] border border-white/10 text-slate-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                                    Restablecer tamaño
+                                </span>
+                            </div>
+                            <div className="relative group">
+                                <button
+                                    onClick={onCenterSelectionFrame}
+                                    disabled={!videoUrl || isBackendOnline === false || isProcessing}
+                                    title="Centrar marco"
+                                    className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
+                                >
+                                    <Crosshair className="w-3.5 h-3.5 text-slate-400" />
+                                </button>
+                                <span className="pointer-events-none absolute z-20 top-full mt-1 md:top-auto md:bottom-full md:mb-1 left-1/2 -translate-x-1/2 whitespace-nowrap px-2 py-1 text-[8px] md:text-[9px] font-bold uppercase tracking-wide rounded-md bg-[#050505] border border-white/10 text-slate-300 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                                    Centrar marco
+                                </span>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Rotation Controls */}
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Rotación</span>
-                            <span className="text-[#3b2bee] font-mono text-[10px] font-black">{settings.rotation}°</span>
-                        </div>
-                        <div className={`flex items-center gap-1.5 transition-opacity ${!videoUrl || isBackendOnline === false || isProcessing ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                            <button
-                                onClick={() => onSettingChange('rotation', Math.max(-45, settings.rotation - 90))}
-                                disabled={!videoUrl || isBackendOnline === false || isProcessing}
-                                className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
-                            >
-                                <RotateCcw className="w-3.5 h-3.5 text-slate-400" />
-                            </button>
-                            <button
-                                onClick={() => onSettingChange('rotation', Math.min(45, settings.rotation + 90))}
-                                disabled={!videoUrl || isBackendOnline === false || isProcessing}
-                                className="w-8 h-8 bg-[#050505] hover:bg-white/5 border border-white/5 rounded-lg flex items-center justify-center transition-all active:scale-90 disabled:cursor-not-allowed"
-                            >
-                                <RotateCw className="w-3.5 h-3.5 text-slate-400" />
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Safe Zones Toggle */}
+                    {/* Grid Toggle */}
                     <div className={`flex items-center justify-between p-1 transition-all border-t border-white/5 pt-4 ${!videoUrl || isBackendOnline === false || isProcessing ? 'opacity-40 cursor-not-allowed' : ''}`}>
-                        <span className="text-xs font-medium text-slate-400 tracking-tight">Guías Seguras</span>
+                        <span className="text-xs font-medium text-slate-400 tracking-tight">Retícula 3x3</span>
                         <button
-                            onClick={() => onSettingChange('safeZones', !settings.safeZones)}
+                            onClick={() => onSettingChange('showGrid', !settings.showGrid)}
                             disabled={!videoUrl || isBackendOnline === false || isProcessing}
-                            className={`w-11 h-6 rounded-full relative transition-all shadow-inner disabled:cursor-not-allowed ${settings.safeZones ? 'bg-[#3b2bee]' : 'bg-[#050505] border border-white/10'}`}
+                            className={`w-11 h-6 rounded-full relative transition-all shadow-inner disabled:cursor-not-allowed ${settings.showGrid ? 'bg-[#3b2bee]' : 'bg-[#050505] border border-white/10'}`}
                         >
-                            <div className={`absolute top-1 w-4 h-4 bg-white/90 rounded-full transition-all border border-black/10 shadow-sm ${settings.safeZones ? 'right-1' : 'left-1'}`}></div>
+                            <div className={`absolute top-1 w-4 h-4 bg-white/90 rounded-full transition-all border border-black/10 shadow-sm ${settings.showGrid ? 'right-1' : 'left-1'}`}></div>
                         </button>
                     </div>
                 </div>

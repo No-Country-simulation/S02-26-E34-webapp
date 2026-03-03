@@ -85,10 +85,10 @@ class MediaPipeDetector(Detector):
 
         h, w = frame.shape[:2]
         # Convert BGR to RGB
-        rgb = frame[:, :, ::-1]
+        rgb = np.ascontiguousarray(frame[:, :, ::-1], dtype=np.uint8)
 
         # Create MediaPipe image
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
+        mp_image = mp.Image(mp.ImageFormat.SRGB, rgb)
 
         # Run detection depending on running mode
         if getattr(self, "_running_mode", None) == vision.RunningMode.VIDEO:

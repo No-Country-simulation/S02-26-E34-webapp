@@ -36,6 +36,7 @@ from .llm_service import llm_service
 from core.hybrid_tracker import HybridTrackerEngine
 from core.dtos import AnalysisRequest, VideoMetadata, SelectionRect
 from core.stabilizer import Stabilizer
+from core.mediapipe_detector import MediaPipeDetector
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -374,8 +375,8 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     # Personas de respaldo (MediaPipe)
     try:
         mp_detector = MediaPipeDetector()
-    except:
-        logger.warning("MediaPipe no disponible. Fallback a centro absoluto.")
+    except Exception as e:
+        logger.warning(f"MediaPipe no disponible ({type(e).__name__}: {e}). Fallback a centro absoluto.")
         mp_detector = None
 
     # Datos de selección

@@ -66,12 +66,59 @@ interface StatusResponse {
 
 export const uploadVideo = async (
   file: File,
-  options: { addSubtitles: boolean; addBranding: boolean }
+  options: {
+    addSubtitles: boolean;
+    addBranding: boolean;
+    cropX?: number;
+    cropY?: number;
+    selectionSize?: number;
+    selectionArea?: {
+      width?: number;
+      height?: number;
+      frameWidth?: number;
+      frameHeight?: number;
+    } | null;
+    trim?: {
+      start?: number;
+      end?: number;
+    };
+  }
 ): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('add_subtitles', options.addSubtitles.toString());
   formData.append('add_branding', options.addBranding.toString());
+
+  const selectionArea = options.selectionArea;
+  const hasSelectionArea = !!selectionArea &&
+    !!selectionArea.width &&
+    !!selectionArea.height &&
+    !!selectionArea.frameWidth &&
+    !!selectionArea.frameHeight;
+
+  const selectionCx = typeof options.cropX === 'number' ? options.cropX / 100 : 0.5;
+  const selectionCy = typeof options.cropY === 'number' ? options.cropY / 100 : 0.5;
+
+  let selectionW = 0.3;
+  let selectionH = 0.5;
+
+  if (hasSelectionArea && selectionArea) {
+    selectionW = (selectionArea.width as number) / (selectionArea.frameWidth as number);
+    selectionH = (selectionArea.height as number) / (selectionArea.frameHeight as number);
+  }
+
+  formData.append('selection_cx', String(Math.max(0, Math.min(1, selectionCx))));
+  formData.append('selection_cy', String(Math.max(0, Math.min(1, selectionCy))));
+  formData.append('selection_w', String(Math.max(0, Math.min(1, selectionW))));
+  formData.append('selection_h', String(Math.max(0, Math.min(1, selectionH))));
+  formData.append('selection_time', String(options.trim?.start ?? 0));
+
+  if (typeof options.trim?.start === 'number') {
+    formData.append('trim_start', String(options.trim.start));
+  }
+  if (typeof options.trim?.end === 'number') {
+    formData.append('trim_end', String(options.trim.end));
+  }
 
   try {
     const controller = new AbortController();
@@ -168,4 +215,40 @@ export const downloadVideo = async (videoId: string): Promise<Blob> => {
     }
     throw error;
   }
+};
+
+export const generatePreview = async (
+  file: File,
+  payload: {
+    startTime: number;
+    endTime: number;
+    selectionCx: number;
+    selectionCy: number;
+    selectionW: number;
+    selectionH: number;
+    selectionTime?: number;
+  }
+): Promise<Blob> => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('start_time', String(payload.startTime));
+  formData.append('end_time', String(payload.endTime));
+  formData.append('selection_cx', String(payload.selectionCx));
+  formData.append('selection_cy', String(payload.selectionCy));
+  formData.append('selection_w', String(payload.selectionW));
+  formData.append('selection_h', String(payload.selectionH));
+  formData.append('selection_time', String(payload.selectionTime ?? payload.startTime));
+
+  const response = await fetch(`${API_BASE_URL}/upload/preview`, {
+    method: 'POST',
+    body: formData
+  });
+
+  if (!response.ok) {
+    const errorData = await response.text();
+    console.error('Preview generation error:', errorData);
+    throw new Error(`Error generating preview: ${response.statusText}`);
+  }
+
+  return await response.blob();
 };

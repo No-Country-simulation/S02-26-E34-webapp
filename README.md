@@ -1,54 +1,63 @@
-# Verv.io - Video 16:9 to 9:16 AI Converter
+# Verv.io - Video 16:9 → 9:16
 
-Verv.io es una plataforma inteligente diseñada para creadores de contenido, que automatiza la conversión de videos horizontales (16:9) a formatos verticales (9:16) optimizados para TikTok, Instagram Reels y YouTube Shorts.
+Verv.io es una plataforma SaaS para convertir videos horizontales a formato vertical con flujo completo de autenticación, procesamiento y descarga.
 
 ![Verv.io Preview](preview.png)
 
-## 🚀 Características Principales
+## 🚀 Estado actual del producto
 
-- **Conversión Inteligente**: Reencuadre automático basado en el sujeto principal del video.
-- **IA de Detección**: Utiliza MediaPipe y OpenCV para detección de rostros y seguimiento de sujetos.
-- **Subtítulos Automáticos**: Generación de subtítulos mediante Whisper (OpenAI).
-- **Branding**: Personalización con logos, colores y marcos dinámicos.
-- **Métricas**: Panel de estadísticas para monitorear el uso y rendimiento.
-- **Editor en Tiempo Real**: Previsualización instantánea de los ajustes de marco.
+- **Editor web** para cargar video, ajustar marco 9:16, recortar clip y lanzar procesamiento.
+- **Pipeline backend** con upload streaming, validaciones de formato/tamaño/duración y procesamiento asíncrono.
+- **Seguimiento de estado** con polling de progreso y descarga del resultado final.
+- **Autenticación** con email/password, Google OAuth y refresh de sesión JWT.
+- **Gestión de usuarios** (perfil, estadísticas y panel admin con aprobación/rechazo/roles).
+- **Observabilidad básica** con endpoints de salud, caché y storage.
 
-## 🏗️ Arquitectura del Proyecto
-
-El proyecto está organizado en una estructura monorepo simplificada:
+## 🏗️ Estructura del repositorio
 
 ```text
 video-mvp/
-├── frontend/    # Aplicación Next.js (React 19, Tailwind v4)
-├── backend/     # Servicio API FastAPI (Python, FFmpeg, AI Models)
-├── data-app/    # Componentes de gestión de datos
-└── skills/      # Definición de habilidades para agentes/AI
+├── frontend/    # Next.js 16 + React 19 + Tailwind v4
+├── backend/     # FastAPI + MongoDB + Redis + FFmpeg
+├── data-app/    # Scripts y utilidades de análisis
+└── skills/      # Recursos auxiliares para agentes
 ```
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Stack resumido
 
-### Frontend
-- **Framework**: Next.js 16 (App Router)
-- **Lógica**: React 19, TypeScript
-- **Estilos**: Tailwind CSS v4 (vanguardista, alta performance)
-- **Estado**: Zustand
-- **Animaciones**: Framer Motion
-- **Reproductor**: Video.js
+- **Frontend**: Next.js 16, React 19, TypeScript, Zustand, Tailwind CSS v4.
+- **Backend**: FastAPI, MongoDB (Motor), Redis, FFmpeg/ffprobe, OpenCV, MediaPipe, Whisper.
 
-### Backend
-- **Framework**: FastAPI
-- **Procesamiento**: FFmpeg & OpenCV
-- **Modelos IA**: MediaPipe (Face/Pose Detection), Whisper (Subtitles)
-- **Base de Datos**: MongoDB (Motor async driver)
-- **Caché/Tareas**: Redis & Celery
-- **Autenticación**: JWT & Google OAuth2
+## 🚦 Inicio rápido
 
-## 🚦 Inicio Rápido
+### 1) Backend
 
-Para instrucciones detalladas sobre cómo ejecutar cada componente, consulta los README específicos:
+```bash
+cd video-mvp/backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+python main.py
+```
 
-1. [Guía del Frontend](video-mvp/frontend/README.md)
-2. [Guía del Backend](video-mvp/backend/README.md)
+### 2) Frontend
+
+```bash
+cd video-mvp/frontend
+npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Con esto:
+- Backend: `http://localhost:8000`
+- Frontend: `http://localhost:3000`
+
+## 📚 Documentación por módulo
+
+- [README Frontend](video-mvp/frontend/README.md)
+- [README Backend](video-mvp/backend/README.md)
 
 ---
-Desarrollado con ❤️ para la comunidad de creadores de contenido.
+Proyecto Verv.io - conversión vertical enfocada en flujo MVP real.

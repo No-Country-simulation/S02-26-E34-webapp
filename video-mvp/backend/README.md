@@ -1,70 +1,96 @@
-# Verv.io - Video Processor Backend (FastAPI)
+# Verv.io - Backend (FastAPI)
 
-El backend de Verv.io es el motor central que procesa videos, detecta sujetos mediante IA y genera las versiones verticales listas para redes sociales.
+Backend de Verv.io para autenticación, gestión de usuarios, carga/procesamiento de videos y entrega de resultados convertidos.
 
-## 🚀 Características del Backend
+## 🚀 Qué está implementado hoy
 
-- **Procesamiento de Video**: Gestión de colas y procesamiento asíncrono.
-- **IA de Detección**:
-  - Detección de rostros y seguimiento con **MediaPipe**.
-  - Detección de objetos y sujetos relevantes con **OpenCV**.
-- **Generación de Subtítulos**: Integración con **OpenAI Whisper** para transcripción automática.
-- **Branding Dinámico**: Generación de marcos, logos y elementos visuales con **FFmpeg**.
-- **API RESTful**: Endpoints modulares para gestión de videos, usuarios y estadísticas.
-- **Autenticación**: Sistema robusto con JWT y Google OAuth2.
-- **Rate Limiting**: Protección contra abusos mediante **Redis**.
+- **API versionada** con prefijo `/api/v1`.
+- **Upload de video por streaming** (chunks de 8KB), validación de formato/tamaño/duración con `ffprobe`.
+- **Procesamiento asíncrono** en segundo plano con actualización de estado y progreso.
+- **Descarga de resultado** cuando el video finaliza (`processed`).
+- **Auth completa**: registro, login email/password, Google OAuth, refresh de sesión JWT.
+- **Gestión de usuarios**: perfil, cookies, stats del usuario y endpoints de administración (aprobar/rechazar/roles).
+- **Infra operativa**: MongoDB + Redis, CORS configurable, rate limiting, validación de requests, health checks.
 
-## 🛠️ Stack Tecnológico
+## 🛠️ Stack
 
-- **Lenguaje**: Python 3.10+
-- **Framework API**: FastAPI
-- **Base de Datos**: MongoDB (Motor async)
-- **Caché/Rate Limit**: Redis
-- **Procesamiento Gráfico**: FFmpeg-python, OpenCV, Numpy, Pillow
-- **IA/ML**: MediaPipe, OpenAI Whisper
-- **Tareas Asíncronas**: Celery
-- **Validación**: Pydantic v2
+- Python 3.10+
+- FastAPI + Uvicorn
+- MongoDB (Motor/PyMongo)
+- Redis
+- FFmpeg / ffprobe
+- OpenCV + MediaPipe
+- Whisper + Gemini (según configuración)
+- Pydantic v2
 
-## 📦 Instalación y Configuración
+## 📦 Setup local
 
-1. Asegúrate de tener **Python 3.10+** y **FFmpeg** instalados en el sistema.
+1. Ir al backend:
 
-2. Crea un entorno virtual y actívalo:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # En Windows: .venv\Scripts\activate
-   ```
+```bash
+cd video-mvp/backend
+```
 
-3. Instala las dependencias:
-   ```bash
-   pip install -r requirements.txt
-   ```
+2. Crear y activar entorno virtual:
 
-4. Configura las variables de entorno:
-   ```bash
-   cp .env.example .env
-   # Edita .env con tus claves de MongoDB, Redis, etc.
-   ```
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
 
-5. Inicia el servidor:
-   ```bash
-   python main.py
-   ```
+3. Instalar dependencias:
 
-## 🎥 Flujo de Procesamiento
+```bash
+pip install -r requirements.txt
+```
 
-1. **Subida**: El usuario sube un video MP4.
-2. **Análisis**: MediaPipe detecta rostros y sujetos en cada frame clave.
-3. **Cálculo de Marco**: Se determina el área vertical (9:16) óptima para no perder lo esencial.
-4. **Procesado**: FFmpeg aplica el recorte, escala y opcionalmente añade subtítulos y branding.
-5. **Exportación**: El archivo final se almacena y se notifica al usuario.
+4. Variables de entorno:
 
-## 📁 Endpoints Principales
+```bash
+cp .env.example .env
+```
 
-- `POST /api/v1/endpoints/upload/`: Subida de videos.
-- `GET /api/v1/endpoints/video/{id}`: Obtener detalles y estado del video.
-- `GET /api/v1/endpoints/stats/`: Métricas globales del sistema.
-- `GET /api/v1/endpoints/user/profile`: Gestión de datos de usuario.
+5. Ejecutar API:
+
+```bash
+python main.py
+```
+
+> Por defecto corre en `http://localhost:8000`.
+
+## 🔑 Endpoints principales
+
+### Auth
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/google`
+- `POST /api/v1/auth/refresh`
+- `GET /api/v1/auth/cookie-preferences`
+- `PUT /api/v1/auth/cookie-preferences`
+
+### Videos
+- `POST /api/v1/upload/`
+- `GET /api/v1/status/{video_id}`
+- `GET /api/v1/download/{video_id}`
+- `GET /api/v1/videos`
+- `GET /api/v1/videos/{video_id}`
+- `PATCH /api/v1/videos/{video_id}`
+- `DELETE /api/v1/videos/{video_id}`
+
+### Users
+- `GET /api/v1/users/me`
+- `PATCH /api/v1/users/me`
+- `GET /api/v1/users/me/stats`
+- `GET /api/v1/users` (admin)
+- `PUT /api/v1/users/{user_id}/approve` (admin)
+- `PUT /api/v1/users/{user_id}/reject` (admin)
+- `PUT /api/v1/users/{user_id}/role` (admin)
+
+### Salud / monitoreo
+- `GET /health`
+- `GET /api/v1/health`
+- `GET /cache/stats`
+- `GET /storage/status`
 
 ---
-Verv.io Backend - Potenciando el contenido vertical con IA.
+Verv.io Backend - Conversión de video vertical con API lista para producción MVP.

@@ -44,8 +44,9 @@ const useBackendStatus = (healthUrl: string = HEALTH_URL) => {
       }
     } catch (error) {
       const isNetworkError = error instanceof TypeError && error.message.includes('fetch');
+      const isAbortError = error instanceof DOMException && error.name === 'AbortError';
 
-      if (!isNetworkError) {
+      if (!isNetworkError && !isAbortError) {
         console.error('Backend status check failed:', error);
       }
       setIsOnline(false);

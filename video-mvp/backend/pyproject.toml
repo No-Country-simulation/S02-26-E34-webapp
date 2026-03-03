@@ -30,6 +30,8 @@ dependencies = [
     "google-auth-httplib2==0.1.1",
     "PyJWT==2.8.0",
     "google-generativeai>=0.3.0",
+    "openai-whisper",
+    "bcrypt>=5.0.0",
 ]
 
 [build-system]

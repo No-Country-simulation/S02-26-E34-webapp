@@ -5,7 +5,6 @@ import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download } from 'l
 
 interface Settings {
     selectionSize: number;
-    rotation: number;
     cropX: number;
     cropY: number;
     showOverlay: boolean;
@@ -32,10 +31,14 @@ interface SelectionArea {
 interface PreviewPanelProps {
     videoUrl: string | null;
     convertedUrl: string | null;
+    generatedPreviewUrl: string | null;
     settings: Settings;
     selectionArea: SelectionArea | null;
+    previewVideoRef: React.RefObject<HTMLVideoElement | null>;
     onConvert: () => void;
+    onGeneratePreview: () => void;
     isProcessing: boolean;
+    isGeneratingPreview: boolean;
     progress: number;
     videoUrlExist: boolean;
     isBackendOnline: boolean | null;
@@ -49,10 +52,14 @@ interface PreviewPanelProps {
 export default function PreviewPanel({
     videoUrl,
     convertedUrl,
+    generatedPreviewUrl,
     settings,
     selectionArea,
+    previewVideoRef,
     onConvert,
+    onGeneratePreview,
     isProcessing,
+    isGeneratingPreview,
     progress,
     videoUrlExist,
     isBackendOnline,
@@ -61,8 +68,6 @@ export default function PreviewPanel({
     const previewStyle = useMemo(() => {
         if (!selectionArea || selectionArea.width <= 0 || selectionArea.height <= 0 || selectionArea.frameWidth <= 0 || selectionArea.frameHeight <= 0) {
             return {
-                transform: `rotate(${settings.rotation}deg)`,
-                transformOrigin: '50% 50%',
                 left: '0%',
                 top: '0%',
                 width: '100%',
@@ -70,20 +75,18 @@ export default function PreviewPanel({
             };
         }
 
-        const widthScale = 100 / ((selectionArea.width / selectionArea.frameWidth) * 100);
-        const heightScale = 100 / ((selectionArea.height / selectionArea.frameHeight) * 100);
-        const top = -selectionArea.y * (heightScale / 100);
-        const left = -selectionArea.x * (widthScale / 100);
+        const widthPercent = (selectionArea.frameWidth / selectionArea.width) * 100;
+        const heightPercent = (selectionArea.frameHeight / selectionArea.height) * 100;
+        const leftPercent = -(selectionArea.x / selectionArea.width) * 100;
+        const topPercent = -(selectionArea.y / selectionArea.height) * 100;
 
         return {
-            transform: `rotate(${settings.rotation}deg)`,
-            transformOrigin: 'top left',
-            left: `${left}px`,
-            top: `${top}px`,
-            width: `${selectionArea.frameWidth * (widthScale / 100)}px`,
-            height: `${selectionArea.frameHeight * (heightScale / 100)}px`
+            left: `${leftPercent}%`,
+            top: `${topPercent}%`,
+            width: `${widthPercent}%`,
+            height: `${heightPercent}%`
         };
-    }, [selectionArea, settings.rotation]);
+    }, [selectionArea]);
 
     return (
         <section className="w-full p-8 flex flex-col gap-10 bg-[#0F0F15] rounded-[2.5rem] border border-white/5 h-full shadow-2xl">
@@ -104,16 +107,21 @@ export default function PreviewPanel({
 
                     <div className="w-full h-full rounded-[1.8rem] md:rounded-4xl overflow-hidden relative bg-slate-900/40">
                         {convertedUrl ? (
-                            <video src={convertedUrl} className="w-full h-full object-cover" controls={false} autoPlay />
+                            <video ref={previewVideoRef} src={convertedUrl} className="w-full h-full object-cover" controls={false} autoPlay muted playsInline />
+                        ) : generatedPreviewUrl ? (
+                            <video ref={previewVideoRef} src={generatedPreviewUrl} className="w-full h-full object-cover" controls={false} autoPlay muted playsInline />
                         ) : videoUrl ? (
                             <div
                                 className="absolute transition-all duration-150"
                                 style={previewStyle}
                             >
                                 <video
+                                    ref={previewVideoRef}
                                     src={videoUrl}
                                     className="w-full h-full object-cover"
                                     controls={false}
+                                    muted
+                                    playsInline
                                 />
                             </div>
                         ) : (
@@ -145,6 +153,18 @@ export default function PreviewPanel({
                     </div>
                 </div>
             </div>
+
+            <button
+                onClick={onGeneratePreview}
+                disabled={isGeneratingPreview || !videoUrlExist || isBackendOnline === false}
+                className={`w-full py-4 rounded-2xl font-black uppercase tracking-[0.25em] text-[11px] flex items-center justify-center gap-3 transition-all active:scale-[0.98] ${isGeneratingPreview || !videoUrlExist || isBackendOnline === false ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5' : 'bg-white/10 text-white border border-white/15 hover:bg-white/20'}`}
+            >
+                {isGeneratingPreview ? (
+                    <><RefreshCw className="w-4 h-4 animate-spin" /> Generando preview</>
+                ) : (
+                    <><Smartphone className="w-4 h-4" /> Preview</>
+                )}
+            </button>
 
             {/* Export Section */}
             <div className="flex flex-col gap-6">
