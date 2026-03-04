@@ -267,7 +267,14 @@ export default function ImprovedEditorPage() {
         selectionCy: Math.max(0, Math.min(1, selectionCy)),
         selectionW: Math.max(0.05, Math.min(1, selectionW)),
         selectionH: Math.max(0.05, Math.min(1, selectionH)),
-        selectionTime: playheadTime
+        selectionTime: playheadTime,
+        watermarkMode: (() => {
+          try {
+            const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+            const token = userStr ? JSON.parse(userStr)?.access_token : null;
+            return token ? 'online' : 'offline';
+          } catch { return 'offline'; }
+        })()
       });
 
       const nextPreviewUrl = URL.createObjectURL(previewBlob);

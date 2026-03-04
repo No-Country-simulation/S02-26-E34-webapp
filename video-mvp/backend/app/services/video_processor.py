@@ -356,10 +356,15 @@ def convert_to_vertical(input_path: str, video_id: str) -> str:
 
     return output_path
 
-def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, Any] = None) -> str:
+def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, Any] = None, watermark_mode: str = None) -> str:
     """
     Aplica recorte INTELIGENTE DINÁMICO con seguimiento de sujetos y personas de respaldo.
     Garantiza formato 9:16 sin distorsión y centrado perfecto.
+    
+    watermark_mode:
+      - None:      Sin marca de agua (default, para uso interno del pipeline)
+      - "offline": Marca de agua "VERV.IO" centrada, ocupando el ancho del video (usuario no logueado)
+      - "online":  Marca de agua "VERV.IO" en esquina inferior izquierda, 5% del alto (usuario logueado)
     """
     _ensure_cv2_runtime()
     logger.info(f"Iniciando Smart Dynamic Crop para video {video_id}")
@@ -513,9 +518,40 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     cap.release()
     out_video.release()
     
-    # 6. Re-codificar a H.264 (browser-compatible) + re-inyectar audio si existe
+    # 6. Re-codificar a H.264 (browser-compatible) + re-inyectar audio si existe + watermark
     # OpenCV VideoWriter con XVID produce MPEG-4 Part 2 que los navegadores NO pueden
     # reproducir. SIEMPRE debemos re-codificar a H.264 con FFmpeg.
+    
+    # --- Watermark drawtext filter ---
+    def _build_watermark_filter(mode: str, vid_w: int, vid_h: int) -> str:
+        """Genera el filtro drawtext de FFmpeg para la marca de agua VERV.IO."""
+        if mode == "online":
+            # Esquina inferior izquierda, 5% del alto total del video
+            font_size = max(12, int(vid_h * 0.05))
+            return (
+                f"drawtext=text='VERV.IO'"
+                f":fontsize={font_size}"
+                f":fontcolor=white@0.5"
+                f":x=({font_size}*0.3)"
+                f":y=h-th-({font_size}*0.3)"
+                f":font='sans-serif'"
+            )
+        else:
+            # Modo offline: centrado, ocupando el ancho del video
+            # Calculamos un fontsize que haga que el texto ocupe ~80% del ancho
+            # "VERV.IO" tiene 7 chars, cada char ~0.6x fontsize de ancho
+            font_size = max(20, int(vid_w / (7 * 0.6) * 0.8))
+            return (
+                f"drawtext=text='VERV.IO'"
+                f":fontsize={font_size}"
+                f":fontcolor=white@0.35"
+                f":x=(w-tw)/2"
+                f":y=(h-th)/2"
+                f":font='sans-serif'"
+            )
+    
+    wm_filter = _build_watermark_filter(watermark_mode, render_w, render_h) if watermark_mode else None
+    
     try:
         # Verificamos si el video original tiene audio
         has_audio = False
@@ -526,39 +562,69 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
             logger.warning(f"No se pudo analizar el audio de {video_path}: {probe_err}")
 
         if has_audio:
-            logger.info(f"Re-codificando a H.264 + audio desde: {video_path}")
-            input_v = ffmpeg.input(tmp_out)
-            input_a = ffmpeg.input(video_path)
-            (
-                ffmpeg
-                .output(
-                    input_v.video,
-                    input_a.audio,
-                    output_path,
-                    vcodec="libx264",
-                    acodec="aac",
-                    preset="fast",
-                    crf=23,
-                    pix_fmt="yuv420p",
-                    movflags="+faststart",
-                    shortest=None,
-                    **{"b:a": "192k"}
+            if wm_filter:
+                logger.info(f"Re-codificando a H.264 + audio + watermark ({watermark_mode}) desde: {video_path}")
+                import subprocess as _sp
+                cmd = [
+                    "ffmpeg", "-y",
+                    "-i", tmp_out,
+                    "-i", video_path,
+                    "-map", "0:v:0", "-map", "1:a:0",
+                    "-vf", wm_filter,
+                    "-vcodec", "libx264",
+                    "-acodec", "aac",
+                    "-preset", "fast",
+                    "-crf", "23",
+                    "-pix_fmt", "yuv420p",
+                    "-movflags", "+faststart",
+                    "-shortest",
+                    "-b:a", "192k",
+                    output_path
+                ]
+                result = _sp.run(cmd, capture_output=True)
+                if result.returncode != 0:
+                    stderr = result.stderr.decode() if result.stderr else "Error desconocido"
+                    raise Exception(f"FFmpeg watermark+audio failed: {stderr}")
+            else:
+                logger.info(f"Re-codificando a H.264 + audio desde: {video_path}")
+                input_v = ffmpeg.input(tmp_out)
+                input_a = ffmpeg.input(video_path)
+                (
+                    ffmpeg
+                    .output(
+                        input_v.video,
+                        input_a.audio,
+                        output_path,
+                        vcodec="libx264",
+                        acodec="aac",
+                        preset="fast",
+                        crf=23,
+                        pix_fmt="yuv420p",
+                        movflags="+faststart",
+                        shortest=None,
+                        **{"b:a": "192k"}
+                    )
+                    .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
                 )
-                .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
-            )
         else:
-            logger.info("Re-codificando a H.264 (sin audio)")
+            wm_label = f" + watermark ({watermark_mode})" if wm_filter else ""
+            logger.info(f"Re-codificando a H.264{wm_label} (sin audio)")
+            output_kwargs = dict(
+                vcodec="libx264",
+                preset="fast",
+                crf=23,
+                pix_fmt="yuv420p",
+                movflags="+faststart",
+                an=None,
+            )
+            if wm_filter:
+                output_kwargs["vf"] = wm_filter
             (
                 ffmpeg
                 .input(tmp_out)
                 .output(
                     output_path,
-                    vcodec="libx264",
-                    preset="fast",
-                    crf=23,
-                    pix_fmt="yuv420p",
-                    movflags="+faststart",
-                    an=None,
+                    **output_kwargs,
                 )
                 .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
             )

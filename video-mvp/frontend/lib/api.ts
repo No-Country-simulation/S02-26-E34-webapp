@@ -245,6 +245,7 @@ export const generatePreview = async (
     selectionW: number;
     selectionH: number;
     selectionTime?: number;
+    watermarkMode?: 'offline' | 'online';
   }
 ): Promise<Blob> => {
   const formData = new FormData();
@@ -256,6 +257,7 @@ export const generatePreview = async (
   formData.append('selection_w', String(payload.selectionW));
   formData.append('selection_h', String(payload.selectionH));
   formData.append('selection_time', String(payload.selectionTime ?? payload.startTime));
+  formData.append('watermark_mode', payload.watermarkMode ?? 'offline');
 
   const response = await fetch(`${API_BASE_URL}/upload/preview`, {
     method: 'POST',

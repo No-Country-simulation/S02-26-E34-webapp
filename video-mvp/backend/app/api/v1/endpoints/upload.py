@@ -165,7 +165,8 @@ async def generate_preview_video(
     selection_cy: float = Form(0.5, ge=0.0, le=1.0),
     selection_w: float = Form(0.3, ge=0.0, le=1.0),
     selection_h: float = Form(0.5, ge=0.0, le=1.0),
-    selection_time: Optional[float] = Form(None, ge=0.0)
+    selection_time: Optional[float] = Form(None, ge=0.0),
+    watermark_mode: str = Form("offline", description="Watermark mode: 'offline' (centered, full width) or 'online' (small, bottom-left)")
 ):
     """
     Generate an instant 9:16 preview using selection + clip times.
@@ -228,12 +229,16 @@ async def generate_preview_video(
             "selection_time": 0.0 if selection_time is None else max(0.0, selection_time - safe_start)
         }
 
+        # Validate watermark_mode
+        wm_mode = watermark_mode if watermark_mode in ("offline", "online") else "offline"
+
         # Run smart crop (CPU-heavy OpenCV) in a thread to keep event loop responsive
         output_path = await asyncio.to_thread(
             apply_smart_crop,
             video_path=clip_path,
             video_id=f"preview_{preview_id}",
-            selection_data=normalized_selection
+            selection_data=normalized_selection,
+            watermark_mode=wm_mode
         )
 
         if not output_path or not os.path.exists(output_path):
