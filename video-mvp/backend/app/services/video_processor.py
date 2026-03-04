@@ -504,60 +504,88 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     cap.release()
     out_video.release()
     
-    # 6. Re-inyectar audio usando FFmpeg de forma robusta
+    # 6. Re-codificar a H.264 (browser-compatible) + re-inyectar audio si existe
+    # OpenCV VideoWriter con XVID produce MPEG-4 Part 2 que los navegadores NO pueden
+    # reproducir. SIEMPRE debemos re-codificar a H.264 con FFmpeg.
     try:
-        logger.info(f"Combinando video recortado con audio original de: {video_path}")
-        
-        # Verificamos si el video original tiene audio para evitar que FFmpeg falle
+        # Verificamos si el video original tiene audio
+        has_audio = False
         try:
             probe = ffmpeg.probe(video_path)
             has_audio = any(s['codec_type'] == 'audio' for s in probe.get('streams', []))
         except Exception as probe_err:
             logger.warning(f"No se pudo analizar el audio de {video_path}: {probe_err}")
-            has_audio = True # Asumimos que tiene por seguridad
 
-        if not has_audio:
-            logger.warning("El video fuente no tiene audio. Saltando re-inyección.")
-            if os.path.exists(tmp_out):
-                if os.path.exists(output_path): os.remove(output_path)
-                os.rename(tmp_out, output_path)
-            return output_path
-
-        # Mapeo explícito: Video del temporal de OpenCV (0:v) y Audio del original (1:a)
-        input_v = ffmpeg.input(tmp_out)
-        input_a = ffmpeg.input(video_path)
-        
-        # Limpiamos los parámetros para evitar duplicados con SOCIAL_MEDIA_PARAMS
-        output_params = SOCIAL_MEDIA_PARAMS.copy()
-        # Eliminamos 'acodec' y 'vcodec' si ya los vamos a pasar explícitos o queremos que se hereden
-        
-        (
-            ffmpeg
-            .output(
-                input_v.video,
-                input_a.audio,
-                output_path,
-                vcodec="libx264",
-                acodec="aac",
-                strict="experimental",
-                shortest=None,
-                pix_fmt="yuv420p",
-                **{"b:a": "192k"} # Bitrate explícito
+        if has_audio:
+            logger.info(f"Re-codificando a H.264 + audio desde: {video_path}")
+            input_v = ffmpeg.input(tmp_out)
+            input_a = ffmpeg.input(video_path)
+            (
+                ffmpeg
+                .output(
+                    input_v.video,
+                    input_a.audio,
+                    output_path,
+                    vcodec="libx264",
+                    acodec="aac",
+                    preset="fast",
+                    crf=23,
+                    pix_fmt="yuv420p",
+                    movflags="+faststart",
+                    shortest=None,
+                    **{"b:a": "192k"}
+                )
+                .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
             )
-            .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
-        )
-        
-        if os.path.exists(tmp_out): 
+        else:
+            logger.info("Re-codificando a H.264 (sin audio)")
+            (
+                ffmpeg
+                .input(tmp_out)
+                .output(
+                    output_path,
+                    vcodec="libx264",
+                    preset="fast",
+                    crf=23,
+                    pix_fmt="yuv420p",
+                    movflags="+faststart",
+                    an=None,
+                )
+                .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+            )
+
+        if os.path.exists(tmp_out):
             os.remove(tmp_out)
-            
+
     except ffmpeg.Error as e:
         stderr = e.stderr.decode() if e.stderr else "Error desconocido de FFmpeg"
-        logger.error(f"FALLO EN FFmpeg AL UNIR AUDIO: {stderr}")
-        # Si falla, intentamos rescatar el video mudo para que el proceso no muera
-        if os.path.exists(tmp_out) and not os.path.exists(output_path):
-            os.rename(tmp_out, output_path)
+        logger.error(f"FALLO EN FFmpeg AL RE-CODIFICAR: {stderr}")
+        # Fallback: intentar re-codificar solo video (sin audio) como última opción
+        try:
+            logger.warning("Intentando fallback: re-codificar solo video sin audio...")
+            (
+                ffmpeg
+                .input(tmp_out)
+                .output(
+                    output_path,
+                    vcodec="libx264",
+                    preset="fast",
+                    crf=23,
+                    pix_fmt="yuv420p",
+                    movflags="+faststart",
+                    an=None,
+                )
+                .run(overwrite_output=True, capture_stdout=True, capture_stderr=True)
+            )
+            if os.path.exists(tmp_out):
+                os.remove(tmp_out)
+        except Exception as fallback_err:
+            logger.error(f"Fallback FFmpeg también falló: {fallback_err}")
+            # Último recurso: renombrar el archivo XVID (no ideal, pero evita crash)
+            if os.path.exists(tmp_out) and not os.path.exists(output_path):
+                os.rename(tmp_out, output_path)
     except Exception as e:
-        logger.error(f"Error inesperado en re-inyección de audio: {e}")
+        logger.error(f"Error inesperado en re-codificación: {e}")
         if os.path.exists(tmp_out) and not os.path.exists(output_path):
             os.rename(tmp_out, output_path)
 

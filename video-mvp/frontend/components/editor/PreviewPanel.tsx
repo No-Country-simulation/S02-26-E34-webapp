@@ -94,11 +94,21 @@ export default function PreviewPanel({
             ? 'result'
             : 'idle';
 
-    // Reset playback state when preview URL changes
+    // Reset playback state and reload video when preview URL changes
     useEffect(() => {
         setIsResultPlaying(false);
         setResultCurrentTime(0);
         setResultDuration(0);
+        const video = resultVideoRef.current;
+        if (video) {
+            if (generatedPreviewUrl) {
+                video.src = generatedPreviewUrl;
+                video.load();
+            } else {
+                video.removeAttribute('src');
+                video.load();
+            }
+        }
     }, [generatedPreviewUrl]);
 
     // Time update for result video
@@ -316,24 +326,10 @@ export default function PreviewPanel({
                         <div className={`absolute inset-0 transition-opacity duration-500 ${phoneState === 'result' ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'}`}>
                             <video
                                 ref={resultVideoRef}
-                                src={generatedPreviewUrl || undefined}
                                 className="w-full h-full object-cover"
                                 controls={false}
                                 playsInline
-                                onClick={toggleResultPlayback}
                             />
-
-                            {/* Play overlay */}
-                            {phoneState === 'result' && !isResultPlaying && (
-                                <div
-                                    className="absolute inset-0 flex items-center justify-center cursor-pointer"
-                                    onClick={toggleResultPlayback}
-                                >
-                                    <div className="p-4 bg-black/50 rounded-full backdrop-blur-sm transition-transform hover:scale-110">
-                                        <Play className="w-8 h-8 text-white fill-white" />
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                     </div>
