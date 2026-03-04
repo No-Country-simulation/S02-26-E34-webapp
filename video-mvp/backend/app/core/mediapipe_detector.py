@@ -1,6 +1,7 @@
 from typing import List, Optional
 import os
 import numpy as np
+from pathlib import Path
 
 import mediapipe as mp
 try:
@@ -14,15 +15,32 @@ from .detector import Detector
 from .dtos import DetectionBox
 
 
-def _model_path_default(model_dir: str = "models") -> Optional[str]:
-    """Return the expected model path for pose_landmarker_full.task if present.
+def _model_path_default() -> Optional[str]:
+    """Resolve default path for pose_landmarker_full.task.
 
-    Does NOT attempt network download. Caller should handle absence.
+    Search order:
+    1) MEDIAPIPE_MODEL_PATH env var (if file exists)
+    2) <backend>/models/pose_landmarker_full.task
+    3) <backend>/app/models/pose_landmarker_full.task
+    4) <cwd>/models/pose_landmarker_full.task
     """
     model_name = "pose_landmarker_full.task"
-    model_path = os.path.join(model_dir, model_name)
-    if os.path.exists(model_path):
-        return os.path.abspath(model_path)
+
+    env_model_path = os.getenv("MEDIAPIPE_MODEL_PATH")
+    if env_model_path and Path(env_model_path).exists():
+        return str(Path(env_model_path).resolve())
+
+    backend_root = Path(__file__).resolve().parents[2]
+    candidates = [
+        backend_root / "models" / model_name,
+        backend_root / "app" / "models" / model_name,
+        Path.cwd() / "models" / model_name,
+    ]
+
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+
     return None
 
 
@@ -42,7 +60,7 @@ class MediaPipeDetector(Detector):
     ):
         """
         Args:
-            model_path: Path to pose_landmarker.tflite. If None, looks in ./models/
+            model_path: Path to pose_landmarker_full.task. If None, tries common project paths
             min_pose_detection_confidence: Confidence threshold for pose detection
             min_pose_presence_confidence: Confidence threshold for pose presence
             min_tracking_confidence: Confidence threshold for tracking
@@ -55,12 +73,15 @@ class MediaPipeDetector(Detector):
         if vision is None or BaseOptions is None:
             raise ImportError("mediapipe.tasks.python.vision is required for MediaPipeDetector")
 
-        # Determine model path (expect a .task file provided in models/)
+        # Determine model path (expect a .task file provided in project paths)
         if model_path is None:
             model_path = _model_path_default()
 
         if model_path is None or not os.path.exists(model_path):
-            raise FileNotFoundError(f"Model file not found. Place pose_landmarker_full.task in ./models/")
+            raise FileNotFoundError(
+                "Model file not found. Set MEDIAPIPE_MODEL_PATH or place "
+                "pose_landmarker_full.task in backend/models/ or backend/app/models/."
+            )
 
         running_mode_enum = vision.RunningMode.VIDEO
 

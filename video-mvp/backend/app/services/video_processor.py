@@ -392,6 +392,15 @@ def apply_smart_crop(video_path: str, video_id: str, selection_data: Dict[str, A
     # Personas de respaldo (MediaPipe)
     try:
         mp_detector = MediaPipeDetector()
+    except FileNotFoundError as e:
+        logger.warning(
+            "MediaPipe deshabilitado por modelo faltante (%s: %s). "
+            "Descarga pose_landmarker_full.task y colócalo en backend/models/. "
+            "Fallback a centro absoluto.",
+            type(e).__name__,
+            e,
+        )
+        mp_detector = None
     except Exception as e:
         logger.warning(f"MediaPipe no disponible ({type(e).__name__}: {e}). Fallback a centro absoluto.")
         mp_detector = None

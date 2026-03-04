@@ -1,6 +1,8 @@
 import importlib
+import os
 import shutil
 import sys
+from pathlib import Path
 
 
 def _check_module(module_name: str):
@@ -59,6 +61,27 @@ def main() -> int:
         else:
             failed = True
             print(f"[FAIL] {binary} no encontrado en PATH")
+
+    print("\n== MediaPipe model check ==")
+    backend_root = Path(__file__).resolve().parents[1]
+    env_model_path = Path(os.environ["MEDIAPIPE_MODEL_PATH"]).expanduser() if "MEDIAPIPE_MODEL_PATH" in os.environ else None
+    candidates = []
+    if env_model_path is not None:
+        candidates.append(env_model_path)
+    candidates.extend([
+        backend_root / "models" / "pose_landmarker_full.task",
+        backend_root / "app" / "models" / "pose_landmarker_full.task",
+    ])
+
+    resolved = next((p for p in candidates if p.exists()), None)
+    if resolved:
+        print(f"[OK] Modelo MediaPipe encontrado: {resolved.resolve()}")
+    else:
+        failed = True
+        print("[FAIL] Modelo MediaPipe faltante en rutas esperadas:")
+        for candidate in candidates:
+            print(f"      - {candidate}")
+        print("      Configura MEDIAPIPE_MODEL_PATH o coloca pose_landmarker_full.task en backend/models/ o backend/app/models/")
 
     if failed:
         print("\nEnvironment validation: FAILED")

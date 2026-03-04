@@ -111,6 +111,23 @@ curl http://127.0.0.1:8000/health
 - `ffmpeg` y `ffprobe` deben estar instalados en el sistema.
 - Sin esas herramientas, fallan validación de duración, preview y procesamiento de video.
 
+## 🤖 Modelo requerido para MediaPipe
+
+Además del paquete `mediapipe`, el backend necesita el archivo de modelo:
+
+- `pose_landmarker_full.task`
+
+Debe existir en:
+
+- `video-mvp/backend/models/pose_landmarker_full.task` o
+- `video-mvp/backend/app/models/pose_landmarker_full.task`
+
+También puedes forzar una ruta explícita con:
+
+- `MEDIAPIPE_MODEL_PATH=/ruta/absoluta/pose_landmarker_full.task`
+
+Si falta, el procesamiento continúa con fallback a centro absoluto y verás un warning de MediaPipe.
+
 ## 🔑 Endpoints principales
 
 ### Auth
