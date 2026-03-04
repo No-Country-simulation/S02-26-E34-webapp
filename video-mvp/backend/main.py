@@ -7,8 +7,9 @@ if __name__ == "__main__":
     from app.core.config import settings
 
     uvicorn.run(
-        app,
+        "app.main:app",
         host=settings.HOST,
         port=settings.PORT,
         log_level="info",
+        reload=True,
     )

@@ -10,6 +10,7 @@ import numpy as np
 import asyncio
 from datetime import datetime
 from bson import ObjectId
+from bson.errors import InvalidId
 
 # Handle optional imports for AI features
 try:
@@ -78,7 +79,13 @@ async def process_video_task(video_id: str):
         db = get_database()
 
         # Obtener registro del video (intentar como ObjectId y como string para compatibilidad)
-        video_record = await db.videos.find_one({"_id": ObjectId(video_id)})
+        object_id = None
+        try:
+            object_id = ObjectId(video_id)
+        except InvalidId:
+            object_id = None
+
+        video_record = await db.videos.find_one({"_id": object_id}) if object_id else None
         if not video_record:
             video_record = await db.videos.find_one({"_id": video_id})
             
@@ -104,13 +111,13 @@ async def process_video_task(video_id: str):
             }}
         )
 
-        # 2. Transcribir contenido con Whisper AI
+        # 2. Transcribir contenido con Whisper AI (CPU-bound — run in thread)
         await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 10, "status_message": "Transcribiendo contenido con Whisper AI..."}})
-        transcription_data = transcription_service.transcribe(input_file)
+        transcription_data = await asyncio.to_thread(transcription_service.transcribe, input_file)
         
-        # 3. Analizar momentos virales con Gemini
+        # 3. Analizar momentos virales con Gemini (puede bloquear en red/CPU — run in thread)
         await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"transcription": transcription_data, "progress": 20, "status_message": "Analizando momentos virales con IA..."}})
-        viral_clips = llm_service.find_viral_moments(transcription_data)
+        viral_clips = await asyncio.to_thread(llm_service.find_viral_moments, transcription_data)
         
         if not viral_clips:
             # Fallback si el LLM no devuelve nada: Usar los primeros 30 segundos
@@ -133,8 +140,8 @@ async def process_video_task(video_id: str):
             clip_msg = f"Procesando clip {i+1}/{len(viral_clips)}: {clip.get('label', 'Viral')}..."
             await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"status_message": clip_msg}})
             
-            # Cortar y trackear el fragmento
-            clip_path = generate_tracked_clip(input_file, video_id, clip, user_selection, i)
+            # Cortar y trackear el fragmento — run in thread to keep event loop responsive
+            clip_path = await asyncio.to_thread(generate_tracked_clip, input_file, video_id, clip, user_selection, i)
             if clip_path:
                 processed_clips.append(clip_path)
 
@@ -143,23 +150,24 @@ async def process_video_task(video_id: str):
 
         # 5. Crear el video "Full Edit" (Unión de todos los clips virales)
         await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 80, "status_message": "Creando montaje final (Full Edit)..."}})
-        output_path = merge_clips(processed_clips, video_id)
+        output_path = await asyncio.to_thread(merge_clips, processed_clips, video_id)
         
         # 6. Aplicar subtítulos y branding al video final si es necesario
         if video_record.get("add_subtitles"):
             await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 85, "status_message": "Generando subtítulos finales..."}})
-            output_path = add_subtitles(output_path, video_id)
+            output_path = await asyncio.to_thread(add_subtitles, output_path, video_id)
         
         if video_record.get("add_branding"):
             await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 90, "status_message": "Aplicando branding final..."}})
-            output_path = add_branding(output_path, video_id)
+            output_path = await asyncio.to_thread(add_branding, output_path, video_id)
         
         # --- NUEVA LÓGICA DE MARCA DE AGUA PARA NO-LOGUEADOS ---
         if not video_record.get("is_premium", False):
             await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 95, "status_message": "Aplicando marca de agua (Free Tier)..."}})
             logger.info(f"Usuario no logueado. Aplicando marca de agua verv.io a {video_id}")
             # Usamos el branding service para poner verv.io en el centro con opacidad suave
-            output_path = branding_service.apply_branding(
+            output_path = await asyncio.to_thread(
+                branding_service.apply_branding,
                 video_path=output_path,
                 text="verv.io",
                 text_position="center"
@@ -167,11 +175,11 @@ async def process_video_task(video_id: str):
         
         await db.videos.update_one({"_id": video_record["_id"]}, {"$set": {"progress": 98, "status_message": "Finalizando y optimizando archivo..."}})
 
-        # Extraer metadatos completos del video procesado
-        processed_metadata = extract_video_metadata(output_path)
+        # Extraer metadatos completos del video procesado (runs ffprobe)
+        processed_metadata = await asyncio.to_thread(extract_video_metadata, output_path)
         
         # Validar archivo procesado
-        validation_result = validate_video_file(output_path)
+        validation_result = await asyncio.to_thread(validate_video_file, output_path)
         
         # Actualizar registro con metadatos completos
         update_data = {
@@ -215,7 +223,7 @@ async def process_video_task(video_id: str):
         os.makedirs(thumbnail_dir, exist_ok=True)
         thumbnail_path = os.path.join(thumbnail_dir, f"{video_id}_thumb.jpg")
         
-        if generate_thumbnail(output_path, thumbnail_path):
+        if await asyncio.to_thread(generate_thumbnail, output_path, thumbnail_path):
             await db.videos.update_one(
                 {"_id": video_record["_id"]},
                 {"$set": {
@@ -228,7 +236,7 @@ async def process_video_task(video_id: str):
         # Generar GIF de vista previa
         preview_gif_path = os.path.join(thumbnail_dir, f"{video_id}_preview.gif")
         
-        if generate_preview_gif(output_path, preview_gif_path):
+        if await asyncio.to_thread(generate_preview_gif, output_path, preview_gif_path):
             await db.videos.update_one(
                 {"_id": video_record["_id"]},
                 {"$set": {"preview_gif_path": preview_gif_path}}

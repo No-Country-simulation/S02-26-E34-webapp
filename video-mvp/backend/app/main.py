@@ -16,6 +16,7 @@ Optimized with:
 """
 import logging
 import time
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -73,6 +74,15 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 60)
     logger.info(f"Starting {settings.PROJECT_NAME}")
     logger.info("=" * 60)
+
+    python_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    if sys.version_info < (3, 11):
+        logger.warning(
+            "Python %s detectado. Se recomienda Python 3.11+ para compatibilidad futura con el stack Gemini/Google.",
+            python_version,
+        )
+    else:
+        logger.info("Python runtime: %s", python_version)
     
     try:
         # Connect to MongoDB
@@ -210,6 +220,7 @@ async def health_check():
     return {
         "status": "healthy",
         "version": "1.0.0",
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         "database": db_details,
         "ai_config": {
             "mediapipe_status": "enabled",

@@ -14,14 +14,19 @@ Backend de Verv.io para autenticación, gestión de usuarios, carga/procesamient
 
 ## 🛠️ Stack
 
-- Python 3.10+
+- Python 3.10+ (recomendado 3.11+)
 - FastAPI + Uvicorn
 - MongoDB (Motor/PyMongo)
 - Redis
 - FFmpeg / ffprobe
 - OpenCV + MediaPipe
-- Whisper + Gemini (según configuración)
+- Whisper + Gemini (`google.genai`)
 - Pydantic v2
+
+## ✅ Estado de migración Gemini
+
+- Migración completada a `google.genai` (SDK único en backend).
+- Eliminado `google-generativeai` para evitar warnings de deprecación.
 
 ## 📦 Setup local
 
@@ -31,7 +36,7 @@ Backend de Verv.io para autenticación, gestión de usuarios, carga/procesamient
 cd video-mvp/backend
 ```
 
-2. Sincronizar dependencias con UV:
+1. Sincronizar dependencias con UV:
 
 ```bash
 uv sync
@@ -47,13 +52,13 @@ uv pip sync requirements.txt
 
 > Evitar mezclar instalaciones manuales (`pip install ...`) fuera de `pyproject.toml` / `requirements.txt`, porque puede romper compatibilidades de FastAPI/Pydantic.
 
-3. Variables de entorno:
+1. Variables de entorno:
 
 ```bash
 cp .env.example .env
 ```
 
-4. Ejecutar API (modo recomendado FastAPI/ASGI):
+1. Ejecutar API (modo recomendado FastAPI/ASGI):
 
 ```bash
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
@@ -61,7 +66,7 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 > Por defecto corre en `http://localhost:8000`.
 
-5. Ejecutar API (modo compatible):
+1. Ejecutar API (modo compatible):
 
 ```bash
 uv run python main.py
@@ -92,12 +97,14 @@ uv run python scripts/verify_environment.py
 uv run python scripts/verify_environment.py
 ```
 
-2. Verificar backend levantado desde main:
+1. Verificar backend levantado desde main:
 
 ```bash
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
 curl http://127.0.0.1:8000/health
 ```
+
+1. Confirmar versión de Python reportada por health (`python_version`) y preferir `3.11+`.
 
 ## 🧩 Dependencias del sistema (Linux)
 
@@ -107,6 +114,7 @@ curl http://127.0.0.1:8000/health
 ## 🔑 Endpoints principales
 
 ### Auth
+
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
 - `POST /api/v1/auth/google`
@@ -115,6 +123,7 @@ curl http://127.0.0.1:8000/health
 - `PUT /api/v1/auth/cookie-preferences`
 
 ### Videos
+
 - `POST /api/v1/upload/`
 - `GET /api/v1/status/{video_id}`
 - `GET /api/v1/download/{video_id}`
@@ -124,6 +133,7 @@ curl http://127.0.0.1:8000/health
 - `DELETE /api/v1/videos/{video_id}`
 
 ### Users
+
 - `GET /api/v1/users/me`
 - `PATCH /api/v1/users/me`
 - `GET /api/v1/users/me/stats`
@@ -133,6 +143,7 @@ curl http://127.0.0.1:8000/health
 - `PUT /api/v1/users/{user_id}/role` (admin)
 
 ### Salud / monitoreo
+
 - `GET /health`
 - `GET /api/v1/health`
 - `GET /cache/stats`

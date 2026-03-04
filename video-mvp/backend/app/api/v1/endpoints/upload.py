@@ -9,6 +9,7 @@ Features:
 - Background task processing
 - Pydantic schemas for validation
 """
+import asyncio
 import logging
 import os
 import uuid
@@ -23,7 +24,7 @@ from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.schemas.video import VideoUploadResponse, VideoStatus
-from app.models.database import get_db
+from app.models.database import get_db, get_database
 from app.repositories.video_repository import VideoRepository
 from app.api.dependencies import get_video_repository, get_optional_user
 
@@ -209,12 +210,15 @@ async def generate_preview_video(
             safe_start = 0.0
             safe_end = min(duration, 5.0)
 
-        (
-            ffmpeg
-            .input(source_path, ss=safe_start, t=max(0.1, safe_end - safe_start))
-            .output(clip_path, vcodec='libx264', acodec='aac')
-            .run(overwrite_output=True, quiet=True)
-        )
+        # Run FFmpeg clip extraction in a thread to avoid blocking the event loop
+        def _extract_clip():
+            (
+                ffmpeg
+                .input(source_path, ss=safe_start, t=max(0.1, safe_end - safe_start))
+                .output(clip_path, vcodec='libx264', acodec='aac')
+                .run(overwrite_output=True, quiet=True)
+            )
+        await asyncio.to_thread(_extract_clip)
 
         normalized_selection = {
             "selection_cx": selection_cx,
@@ -224,7 +228,9 @@ async def generate_preview_video(
             "selection_time": 0.0 if selection_time is None else max(0.0, selection_time - safe_start)
         }
 
-        output_path = apply_smart_crop(
+        # Run smart crop (CPU-heavy OpenCV) in a thread to keep event loop responsive
+        output_path = await asyncio.to_thread(
+            apply_smart_crop,
             video_path=clip_path,
             video_id=f"preview_{preview_id}",
             selection_data=normalized_selection
@@ -261,7 +267,7 @@ async def generate_preview_video(
 
 async def _get_video_duration(file_path: str) -> float:
     """
-    Get video duration using ffprobe.
+    Get video duration using ffprobe (non-blocking).
 
     Args:
         file_path: Path to video file
@@ -280,10 +286,13 @@ async def _get_video_duration(file_path: str) -> float:
         file_path
     ]
 
-    try:
+    def _run_ffprobe():
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         metadata = json.loads(result.stdout)
         return float(metadata['format'].get('duration', 0))
+
+    try:
+        return await asyncio.to_thread(_run_ffprobe)
     except subprocess.CalledProcessError as e:
         logger.warning(f"ffprobe failed: {e.stderr}")
         return 0  # Skip duration validation if ffprobe fails
@@ -306,14 +315,17 @@ async def process_video_task(video_id: str):
         logger.error(f"Background processing failed for {video_id}: {e}")
 
         # Update status to failed
-        db = get_db()
-        await db.videos.update_one(
-            {"_id": video_id},
-            {
-                "$set": {
-                    "status": "failed",
-                    "status_message": f"Processing failed: {str(e)}",
-                    "updated_at": datetime.utcnow()
+        try:
+            db = get_database()
+            await db.videos.update_one(
+                {"_id": video_id},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "status_message": f"Processing failed: {str(e)}",
+                        "updated_at": datetime.utcnow()
+                    }
                 }
-            }
-        )
+            )
+        except Exception as update_error:
+            logger.error(f"Could not mark video {video_id} as failed: {update_error}")

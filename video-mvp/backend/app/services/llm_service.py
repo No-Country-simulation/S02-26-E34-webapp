@@ -3,21 +3,8 @@ import os
 import json
 import logging
 import re
-import importlib
 from typing import List, Dict, Any
-
-google_genai = None
-legacy_genai = None
-
-try:
-    google_genai = importlib.import_module("google.genai")
-except Exception:
-    google_genai = None
-
-try:
-    legacy_genai = importlib.import_module("google.generativeai")
-except Exception:
-    legacy_genai = None
+from google import genai
 
 from app.core.config import settings
 
@@ -33,20 +20,10 @@ class LLMService:
         self.model_name = settings.LLM_MODEL
         print(f"DEBUG: LLMService model_name = {self.model_name}")
         logger.info(f"LLMService iniciado con modelo: {self.model_name}")
-        self.use_new_sdk = google_genai is not None
         self.client: Any = None
         
         if self.api_key:
-            if self.use_new_sdk:
-                client_cls = getattr(google_genai, "Client", None)
-                if client_cls is not None:
-                    self.client = client_cls(api_key=self.api_key)
-            elif legacy_genai is not None:
-                legacy_genai.configure(api_key=self.api_key)
-                self.client = legacy_genai.GenerativeModel(self.model_name)
-            else:
-                self.client = None
-                logger.warning("No se encontró ningún SDK de Gemini instalado.")
+            self.client = genai.Client(api_key=self.api_key)
         else:
             self.client = None
             logger.warning("GEMINI_API_KEY no configurada.")
@@ -99,21 +76,17 @@ RESPUESTA JSON ESPERADA:
 
         try:
             logger.info(f"Pidiendo a Gemini ({self.model_name}) que elija los mejores momentos...")
-            if self.use_new_sdk:
-                response = self.client.models.generate_content(
-                    model=self.model_name,
-                    contents=prompt,
-                )
-                text_response = getattr(response, "text", None) or ""
-                candidates = getattr(response, "candidates", None) or []
-                if not text_response and candidates:
-                    first_candidate = candidates[0]
-                    content = getattr(first_candidate, "content", None)
-                    parts = getattr(content, "parts", None) or []
-                    text_response = "".join(getattr(part, "text", "") for part in parts)
-            else:
-                response = self.client.generate_content(prompt)
-                text_response = response.text
+            response = self.client.models.generate_content(
+                model=self.model_name,
+                contents=prompt,
+            )
+            text_response = getattr(response, "text", None) or ""
+            candidates = getattr(response, "candidates", None) or []
+            if not text_response and candidates:
+                first_candidate = candidates[0]
+                content = getattr(first_candidate, "content", None)
+                parts = getattr(content, "parts", None) or []
+                text_response = "".join(getattr(part, "text", "") for part in parts)
             
             # Limpieza agresiva de JSON
             json_match = re.search(r'\{.*\}', text_response, re.DOTALL)

@@ -1,7 +1,25 @@
 import { showError } from './sweetalert';
 
-// Usar rutas relativas para aprovechar el rewrite de Next.js y evitar CORS
-export const API_BASE_URL = '/api/v1';
+const normalizeBaseUrl = (value?: string) => {
+  if (!value) return '';
+  return value.trim().replace(/\/$/, '');
+};
+
+const isLocalHostName = (hostName: string) => hostName === 'localhost' || hostName === '127.0.0.1';
+
+// Usa NEXT_PUBLIC_API_URL cuando corresponde; fallback a ruta relativa para aprovechar rewrite de Next.js.
+const envApiBaseUrl = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_URL);
+const envPointsToLocalhost =
+  envApiBaseUrl.startsWith('http://localhost') || envApiBaseUrl.startsWith('http://127.0.0.1');
+
+const shouldForceRelativeApiBase =
+  typeof window !== 'undefined' &&
+  envPointsToLocalhost &&
+  !isLocalHostName(window.location.hostname);
+
+export const API_BASE_URL = shouldForceRelativeApiBase
+  ? '/api/v1'
+  : envApiBaseUrl || '/api/v1';
 export const BASE_URL = '';
 export const HEALTH_URL = `${API_BASE_URL}/health`;
 
@@ -124,7 +142,7 @@ export const uploadVideo = async (
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 segundos de timeout para subida
 
-    const response = await fetch(`${API_BASE_URL}/upload/`, {
+    const response = await fetch(`${API_BASE_URL}/upload`, {
       method: 'POST',
       body: formData,
       signal: controller.signal

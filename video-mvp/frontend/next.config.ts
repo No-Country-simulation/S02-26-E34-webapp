@@ -1,14 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async rewrites() {
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: 'http://localhost:8000/api/v1/:path*',
-      },
-    ];
-  },
+  // The /api/v1/* proxy is handled by app/api/v1/[...path]/route.ts
+  // which streams request/response bodies without buffering, so large
+  // file uploads (videos) are not limited by the rewrite proxy's ~1 MB cap.
 };
 
 export default nextConfig;

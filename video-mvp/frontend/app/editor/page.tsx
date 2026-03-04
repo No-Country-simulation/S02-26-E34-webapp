@@ -38,6 +38,12 @@ interface EditorSettings {
   autoTrack: boolean;
 }
 
+interface PreviewStage {
+  id: string;
+  label: string;
+  status: 'pending' | 'active' | 'completed';
+}
+
 const MIN_CLIP_GAP_SECONDS = 1;
 
 const buildSelectionAreaFromSettings = (
@@ -114,6 +120,7 @@ export default function ImprovedEditorPage() {
     instagram: { connected: false },
     youtube: { connected: false }
   });
+  const [processingStage, setProcessingStage] = useState<string>('');
   const [statusMessage, setStatusMessage] = useState<string>('');
   const [selectionArea, setSelectionArea] = useState<SelectionArea | null>(null);
   const [selectionSyncTick, setSelectionSyncTick] = useState<number>(0);
@@ -124,7 +131,10 @@ export default function ImprovedEditorPage() {
   const [clipEnd, setClipEnd] = useState<number>(0);
   const [isClipPlaying, setIsClipPlaying] = useState<boolean>(false);
   const [playheadTime, setPlayheadTime] = useState<number>(0);
+  const [previewStages, setPreviewStages] = useState<PreviewStage[]>([]);
   const selectionAreaRef = useRef<SelectionArea | null>(null);
+  const stageTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const wasGeneratingRef = useRef(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const previewVideoRef = useRef<HTMLVideoElement>(null);
@@ -185,9 +195,12 @@ export default function ImprovedEditorPage() {
     }
     setGeneratedPreviewUrl(null);
     setIsGeneratingPreview(false);
+    setPreviewStages([]);
     setConvertedUrl(null);
     setIsProcessing(false);
     setProgress(0);
+    setProcessingStage('');
+    setStatusMessage('');
     setVideoId(null);
     setSettings({
       selectionSize: 100,
@@ -247,6 +260,7 @@ export default function ImprovedEditorPage() {
     } catch (error) {
       console.error('Error generating preview:', error);
       showError('Error en preview', 'No se pudo generar la previsualización.');
+      setPreviewStages([]);
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -333,6 +347,8 @@ export default function ImprovedEditorPage() {
 
       setIsProcessing(true);
       setProgress(10);
+      setProcessingStage('Archivo subido');
+      setStatusMessage('Tu video fue recibido por el servidor');
 
       const pollStatus = async () => {
         try {
@@ -346,11 +362,18 @@ export default function ImprovedEditorPage() {
             setStatusMessage(statusResponse.message);
           }
 
+          if (statusResponse.status === 'uploaded') {
+            setProcessingStage('En cola');
+          } else if (statusResponse.status === 'processing') {
+            setProcessingStage('Procesando');
+          }
+
           if (statusResponse.status === 'processed') {
             const backendHost = API_BASE_URL.replace('/api/v1', '');
             setConvertedUrl(`${backendHost}/api/v1/download/${response.video_id}`);
             setIsProcessing(false);
             setProgress(100);
+            setProcessingStage('Completado');
             setStatusMessage('');
             showSuccess('Conversión completada', 'Tu video ha sido convertido exitosamente.');
           } else if (statusResponse.status === 'processing' || statusResponse.status === 'uploaded') {
@@ -360,10 +383,12 @@ export default function ImprovedEditorPage() {
             setTimeout(pollStatus, 1000);
           } else if (statusResponse.status === 'failed') {
             setIsProcessing(false);
+            setProcessingStage('Error');
             showError('Error en el procesamiento', 'Hubo un error al procesar el video. Por favor, inténtalo de nuevo.');
           }
         } catch {
           setIsProcessing(false);
+          setProcessingStage('Error de conexión');
           showError('Error de conexión', 'Hubo un error al verificar el estado del video. Por favor, inténtalo de nuevo.');
         }
       };
@@ -388,11 +413,14 @@ export default function ImprovedEditorPage() {
     }
     setGeneratedPreviewUrl(null);
     setIsGeneratingPreview(false);
+    setPreviewStages([]);
     setVideoFileLocal(null);
     setVideoUrl(null);
     setConvertedUrl(null);
     setIsProcessing(false);
     setProgress(0);
+    setProcessingStage('');
+    setStatusMessage('');
     setSettings({
       selectionSize: 100,
       cropX: 50,
@@ -592,6 +620,43 @@ export default function ImprovedEditorPage() {
     };
   }, [generatedPreviewUrl]);
 
+  // Preview stages progression
+  useEffect(() => {
+    if (isGeneratingPreview && !wasGeneratingRef.current) {
+      wasGeneratingRef.current = true;
+      stageTimersRef.current.forEach(clearTimeout);
+      stageTimersRef.current = [];
+
+      setPreviewStages([
+        { id: 'upload', label: 'Enviando video al servidor', status: 'active' },
+        { id: 'extract', label: 'Extrayendo clip de video', status: 'pending' },
+        { id: 'crop', label: 'Aplicando Smart Dynamic Crop', status: 'pending' },
+        { id: 'finalize', label: 'Generando resultado', status: 'pending' },
+      ]);
+
+      const advances = [2000, 5000, 15000];
+      advances.forEach((ms, i) => {
+        const t = setTimeout(() => {
+          setPreviewStages(prev => prev.map((s, idx) => ({
+            ...s,
+            status: idx <= i ? 'completed' as const : idx === i + 1 ? 'active' as const : s.status
+          })));
+        }, ms);
+        stageTimersRef.current.push(t);
+      });
+    } else if (!isGeneratingPreview && wasGeneratingRef.current) {
+      wasGeneratingRef.current = false;
+      stageTimersRef.current.forEach(clearTimeout);
+      stageTimersRef.current = [];
+      setPreviewStages(prev => prev.map(s => ({ ...s, status: 'completed' as const })));
+    }
+
+    return () => {
+      stageTimersRef.current.forEach(clearTimeout);
+      stageTimersRef.current = [];
+    };
+  }, [isGeneratingPreview]);
+
   return (
     <div className="min-h-screen flex flex-col bg-[#050505] text-white overflow-x-hidden font-sans">
       <main className="flex-1 flex flex-col lg:flex-row gap-8 p-8 max-w-400 mx-auto w-full">
@@ -660,6 +725,9 @@ export default function ImprovedEditorPage() {
             isProcessing={isProcessing}
             isGeneratingPreview={isGeneratingPreview}
             progress={progress}
+            processingStage={processingStage}
+            statusMessage={statusMessage}
+            previewStages={previewStages}
             videoUrlExist={!!videoUrl}
             isBackendOnline={isBackendOnline}
             socialConnections={socialConnections}

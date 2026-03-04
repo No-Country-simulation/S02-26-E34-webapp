@@ -12,17 +12,24 @@ def _check_module(module_name: str):
 
 
 def main() -> int:
+    python_ok = sys.version_info >= (3, 11)
     checks = [
         "fastapi",
         "pydantic",
         "cv2",
-        "google.generativeai",
+        "google.genai",
         "bcrypt",
         "whisper",
         "mediapipe",
     ]
 
     failed = False
+
+    print("== Python runtime ==")
+    runtime_version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    print(f"[INFO] Python {runtime_version}")
+    if not python_ok:
+        print("[WARN] Se recomienda Python 3.11+ para compatibilidad futura con Gemini/Google.")
 
     print("== Python package checks ==")
     for module_name in checks:
