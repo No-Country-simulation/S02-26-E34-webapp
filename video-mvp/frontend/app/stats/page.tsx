@@ -91,7 +91,7 @@ export default function DashboardPage() {
             <main className="container mx-auto px-4 py-8">
                 <div className="mb-12">
                     <h1 className="text-3xl font-bold text-foreground mb-2">Estadísticas Verv.io</h1>
-                    <p className="text-slate-400">Monitorea el rendimiento y uso de tus videos</p>
+                    <p className="text-muted-foreground">Monitorea el rendimiento y uso de tus videos</p>
                 </div>
 
                 {/* Stats Overview */}
@@ -134,12 +134,12 @@ export default function DashboardPage() {
                                 Estadísticas de Videos
                             </h2>
                             <div className="flex gap-2">
-                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-slate-300 hover:bg-white/10">7 días</button>
+                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-muted-foreground hover:bg-accent">7 días</button>
                                 <button className="px-3 py-1 text-xs bg-[#3b2bee]/20 border border-[#3b2bee]/30 rounded-lg text-[#3b2bee]">30 días</button>
-                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-slate-300 hover:bg-white/10">90 días</button>
+                                <button className="px-3 py-1 text-xs bg-foreground/5 border border-border rounded-lg text-muted-foreground hover:bg-accent">90 días</button>
                             </div>
                         </div>
-                        <div className="h-80 flex items-center justify-center text-slate-500">
+                        <div className="h-80 flex items-center justify-center text-muted-foreground">
                             <div className="text-center">
                                 <BarChart3 className="w-12 h-12 mx-auto text-[#3b2bee]/30 mb-3" />
                                 <p>Gráfico de estadísticas de videos (simulado)</p>
@@ -158,7 +158,7 @@ export default function DashboardPage() {
                                 <div key={video.id} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
                                     <div className="flex-1 min-w-0">
                                         <p className="font-medium text-foreground truncate">{video.filename}</p>
-                                        <div className="flex items-center gap-3 mt-1 text-xs text-slate-500">
+                                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                                             <span>{Math.floor(video.duration / 60)}:{String(video.duration % 60).padStart(2, '0')}</span>
                                             <span>{video.views} vistas</span>
                                             <span>{video.downloads} descargas</span>
@@ -185,30 +185,30 @@ export default function DashboardPage() {
                     <h2 className="text-xl font-bold text-foreground mb-6">Categorías y Etiquetas</h2>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div className="bg-background/50 p-4 rounded-xl border border-border">
-                            <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
+                            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> Categorías Populares
                             </h3>
                             <div className="space-y-2">
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Marketing</span>
+                                    <span className="text-muted-foreground">Marketing</span>
                                     <span className="text-foreground">8 videos</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Educación</span>
+                                    <span className="text-muted-foreground">Educación</span>
                                     <span className="text-foreground">6 videos</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Evento</span>
+                                    <span className="text-muted-foreground">Evento</span>
                                     <span className="text-foreground">5 videos</span>
                                 </div>
                                 <div className="flex justify-between">
-                                    <span className="text-slate-400">Demo</span>
+                                    <span className="text-muted-foreground">Demo</span>
                                     <span className="text-foreground">3 videos</span>
                                 </div>
                             </div>
                         </div>
                         <div className="bg-background/50 p-4 rounded-xl border border-border">
-                            <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
+                            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2">
                                 <Tag className="w-4 h-4" /> Etiquetas Comunes
                             </h3>
                             <div className="flex flex-wrap gap-2">
@@ -220,34 +220,34 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="bg-background/50 p-4 rounded-xl border border-border">
-                            <h3 className="font-medium text-slate-300 mb-3 flex items-center gap-2">
+                            <h3 className="font-medium text-foreground mb-3 flex items-center gap-2">
                                 <Shield className="w-4 h-4" /> Calidad de Videos
                             </h3>
                             <div className="space-y-3">
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-slate-400">Excelente (90-100%)</span>
+                                        <span className="text-muted-foreground">Excelente (90-100%)</span>
                                         <span className="text-foreground">12</span>
                                     </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                    <div className="w-full bg-muted rounded-full h-2">
                                         <div className="bg-emerald-500 h-2 rounded-full" style={{ width: '50%' }}></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-slate-400">Buena (70-89%)</span>
+                                        <span className="text-muted-foreground">Buena (70-89%)</span>
                                         <span className="text-foreground">8</span>
                                     </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                    <div className="w-full bg-muted rounded-full h-2">
                                         <div className="bg-amber-500 h-2 rounded-full" style={{ width: '33%' }}></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex justify-between text-sm mb-1">
-                                        <span className="text-slate-400">Regular (&lt;70%)</span>
+                                        <span className="text-muted-foreground">Regular (&lt;70%)</span>
                                         <span className="text-foreground">4</span>
                                     </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-2">
+                                    <div className="w-full bg-muted rounded-full h-2">
                                         <div className="bg-rose-500 h-2 rounded-full" style={{ width: '17%' }}></div>
                                     </div>
                                 </div>
@@ -273,7 +273,7 @@ const StatCard = ({ title, value, change, icon, color }: {
         <div className="bg-card p-5 rounded-2xl border border-border hover:border-white/20 transition-colors">
             <div className="flex justify-between items-start">
                 <div>
-                    <p className="text-slate-400 text-sm">{title}</p>
+                    <p className="text-muted-foreground text-sm">{title}</p>
                     <p className="text-2xl font-bold text-foreground mt-1">{value}</p>
                 </div>
                 <div className={`p-3 rounded-lg bg-linear-to-br ${color}`}>

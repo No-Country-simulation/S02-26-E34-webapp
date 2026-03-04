@@ -536,7 +536,21 @@ export default function ImprovedEditorPage() {
         if (res.ok) {
           const data = await res.json();
           if (data.social_connections) {
-            setSocialConnections(data.social_connections);
+            setSocialConnections(prev => ({
+              ...prev,
+              tiktok: {
+                ...prev.tiktok,
+                ...(data.social_connections.tiktok || {})
+              },
+              instagram: {
+                ...prev.instagram,
+                ...(data.social_connections.instagram || {})
+              },
+              youtube: {
+                ...prev.youtube,
+                ...(data.social_connections.youtube || {})
+              }
+            }));
           }
         }
       } catch (error) {
@@ -690,7 +704,7 @@ export default function ImprovedEditorPage() {
   }, [isGeneratingPreview]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#050505] text-white overflow-x-hidden font-sans">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden font-sans">
       <main className="flex-1 flex flex-col lg:flex-row gap-8 p-8 max-w-400 mx-auto w-full">
         {/* Left Column: Editor, Options, Timeline */}
         <div className="flex-1 flex flex-col gap-8 min-w-0">
@@ -709,6 +723,15 @@ export default function ImprovedEditorPage() {
             getInputProps={getInputProps}
             isDragActive={isDragActive}
             selectionSyncTick={selectionSyncTick}
+            isClipPlaying={isClipPlaying}
+            onPlay={playSelectedRange}
+            onPause={pauseClipPlayback}
+            onRestart={restartClipPlayback}
+            onStop={stopClipPlayback}
+            videoDuration={videoDuration}
+            clipStart={clipStart}
+            clipEnd={clipEnd}
+            playheadTime={playheadTime}
           />
 
           {/* Section 2: Timeline Panel */}
@@ -717,12 +740,7 @@ export default function ImprovedEditorPage() {
             videoDuration={videoDuration}
             clipStart={clipStart}
             clipEnd={clipEnd}
-            isClipPlaying={isClipPlaying}
             playheadTime={playheadTime}
-            onPlay={playSelectedRange}
-            onPause={pauseClipPlayback}
-            onRestart={restartClipPlayback}
-            onStop={stopClipPlayback}
             onClipStartChange={handleClipStartChange}
             onClipEndChange={handleClipEndChange}
           />

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download, Check, Loader2, Circle } from 'lucide-react';
 import PlaybackControls from './PlaybackControls';
@@ -430,9 +431,9 @@ export default function PreviewPanel({
                 <div className="space-y-3">
                     {/* TikTok, Instagram, YouTube rows */}
                     {[
-                        { id: 'tiktok', label: 'TikTok', icon: <Share2 className="w-4 h-4" /> },
-                        { id: 'instagram', label: 'Instagram', icon: <Heart className="w-4 h-4" /> },
-                        { id: 'youtube', label: 'YouTube', icon: <MessageCircle className="w-4 h-4" /> },
+                        { id: 'tiktok', label: 'TikTok', iconPath: '/images/social/tiktok.png' },
+                        { id: 'instagram', label: 'Instagram', iconPath: '/images/social/instagram.png' },
+                        { id: 'youtube', label: 'YouTube', iconPath: '/images/social/youtube.png' },
                     ].map((platform) => {
                         const isConnected = socialConnections[platform.id as keyof typeof socialConnections]?.connected;
                         const canGenerate = videoUrlExist && isConnected && isBackendOnline !== false;
@@ -441,7 +442,15 @@ export default function PreviewPanel({
                             <div key={platform.id} className={`flex items-center justify-between p-4 bg-[#0F0F15] rounded-2xl border border-white/5 group transition-all ${!canGenerate ? 'opacity-40 grayscale' : 'hover:bg-[#12121A]'}`}>
                                 <div className="flex items-center gap-4">
                                     <div className={`p-2 bg-[#050505] rounded-xl transition-colors ${canGenerate ? 'text-slate-400 group-hover:text-white' : 'text-slate-600'}`}>
-                                        {platform.icon}
+                                        <div className="w-5 h-5 rounded-sm overflow-hidden">
+                                            <Image
+                                                src={platform.iconPath}
+                                                alt={platform.label}
+                                                width={20}
+                                                height={20}
+                                                className="w-full h-full object-cover"
+                                            />
+                                        </div>
                                     </div>
                                     <div className="flex flex-col">
                                         <span className={`text-xs font-bold transition-colors ${canGenerate ? 'text-slate-300 group-hover:text-white' : 'text-slate-600'}`}>

@@ -98,7 +98,7 @@ export default function ProfilePage() {
         if (plan === 'Team') {
             return 'bg-gradient-to-r from-purple-600 to-pink-600 text-foreground shadow-lg shadow-purple-500/30';
         }
-        return 'bg-foreground/5 text-slate-300 border border-border';
+        return 'bg-foreground/5 text-muted-foreground border border-border';
     };
 
     const getStatusIcon = (status: string) => {
@@ -198,7 +198,7 @@ export default function ProfilePage() {
                     <div className="bg-card rounded-2xl border border-border p-6 sm:p-8">
                         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                             {/* Avatar */}
-                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-[#3b2bee] to-[#8a7cff] flex items-center justify-center text-foreground text-2xl sm:text-3xl font-bold border-4 border-[#121022] shadow-lg shadow-[#3b2bee]/20">
+                            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-linear-to-br from-[#3b2bee] to-[#8a7cff] flex items-center justify-center text-foreground text-2xl sm:text-3xl font-bold border-4 border-[#121022] shadow-lg shadow-[#3b2bee]/20">
                                 {userData.initials}
                             </div>
 
@@ -212,13 +212,13 @@ export default function ProfilePage() {
                                                 {userData.plan}
                                             </span>
                                         </div>
-                                        <p className="text-slate-400 mb-1">{userData.email}</p>
-                                        <p className="text-slate-500 text-sm">Miembro desde {userData.memberSince}</p>
+                                        <p className="text-muted-foreground mb-1">{userData.email}</p>
+                                        <p className="text-muted-foreground text-sm">Miembro desde {userData.memberSince}</p>
                                     </>
                                 ) : (
                                     <div className="space-y-4">
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                            <label className="block text-sm font-medium text-muted-foreground mb-2">
                                                 Nombre completo
                                             </label>
                                             <input
@@ -230,14 +230,14 @@ export default function ProfilePage() {
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-slate-400 mb-2">
+                                            <label className="block text-sm font-medium text-muted-foreground mb-2">
                                                 Email (No editable)
                                             </label>
                                             <input
                                                 type="email"
                                                 value={editForm.email}
                                                 disabled
-                                                className="w-full bg-background border border-border text-slate-500 rounded-lg px-4 py-2 cursor-not-allowed"
+                                                className="w-full bg-background border border-border text-muted-foreground rounded-lg px-4 py-2 cursor-not-allowed"
                                                 placeholder="tu@email.com"
                                             />
                                         </div>
@@ -249,7 +249,7 @@ export default function ProfilePage() {
                             {!isEditing ? (
                                 <button
                                     onClick={handleEdit}
-                                    className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-white/10 border border-border text-slate-300 hover:text-foreground rounded-lg text-sm font-medium transition-all duration-200"
+                                    className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-accent border border-border text-muted-foreground hover:text-foreground rounded-lg text-sm font-medium transition-all duration-200"
                                 >
                                     <Edit2 className="w-4 h-4" />
                                     Editar perfil
@@ -265,7 +265,7 @@ export default function ProfilePage() {
                                     </button>
                                     <button
                                         onClick={handleCancel}
-                                        className="flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-white/10 border border-border text-slate-300 hover:text-foreground rounded-lg text-sm font-medium transition-all duration-200"
+                                        className="flex items-center gap-2 px-4 py-2 bg-foreground/5 hover:bg-accent border border-border text-muted-foreground hover:text-foreground rounded-lg text-sm font-medium transition-all duration-200"
                                     >
                                         <X className="w-4 h-4" />
                                         Cancelar
@@ -285,7 +285,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                             <p className="text-3xl font-bold text-foreground mb-1">{stats.videosProcessed}</p>
-                            <p className="text-sm text-slate-400">Videos procesados</p>
+                            <p className="text-sm text-muted-foreground">Videos procesados</p>
                         </div>
 
                         <div className="bg-card rounded-xl border border-border p-6 hover:border-white/20 transition-all duration-200 group">
@@ -296,7 +296,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                             <p className="text-3xl font-bold text-foreground mb-1">{stats.shortsGenerated}</p>
-                            <p className="text-sm text-slate-400">Shorts generados</p>
+                            <p className="text-sm text-muted-foreground">Shorts generados</p>
                         </div>
 
                         <div className="bg-card rounded-xl border border-border p-6 hover:border-white/20 transition-all duration-200 group">
@@ -307,7 +307,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                             <p className="text-3xl font-bold text-foreground mb-1">{stats.storageUsed}</p>
-                            <p className="text-sm text-slate-400">Espacio usado</p>
+                            <p className="text-sm text-muted-foreground">Espacio usado</p>
                         </div>
 
                         <div className="bg-card rounded-xl border border-border p-6 hover:border-white/20 transition-all duration-200 group">
@@ -318,7 +318,7 @@ export default function ProfilePage() {
                                 </div>
                             </div>
                             <p className="text-3xl font-bold text-foreground mb-1">{stats.totalTime}</p>
-                            <p className="text-sm text-slate-400">Tiempo total procesado</p>
+                            <p className="text-sm text-muted-foreground">Tiempo total procesado</p>
                         </div>
                     </div>
 
@@ -333,7 +333,7 @@ export default function ProfilePage() {
                                 >
                                     <div className="flex-1 mb-2 sm:mb-0">
                                         <p className="text-foreground font-medium mb-1">{item.name}</p>
-                                        <p className="text-slate-500 text-sm">{item.date}</p>
+                                        <p className="text-muted-foreground text-sm">{item.date}</p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {getStatusIcon(item.status)}

@@ -1,18 +1,11 @@
 'use client';
 
-import PlaybackControls from './PlaybackControls';
-
 interface TimelinePanelProps {
   videoUrl: string | null;
   videoDuration: number;
   clipStart: number;
   clipEnd: number;
-  isClipPlaying: boolean;
   playheadTime: number;
-  onPlay: () => void;
-  onPause: () => void;
-  onRestart: () => void;
-  onStop: () => void;
   onClipStartChange: (value: number) => void;
   onClipEndChange: (value: number) => void;
 }
@@ -29,16 +22,10 @@ export default function TimelinePanel({
   videoDuration,
   clipStart,
   clipEnd,
-  isClipPlaying,
   playheadTime,
-  onPlay,
-  onPause,
-  onRestart,
-  onStop,
   onClipStartChange,
   onClipEndChange,
 }: TimelinePanelProps) {
-  const controlsDisabled = !videoUrl || videoDuration <= 0 || clipEnd <= clipStart;
 
   return (
     <section className="p-6 bg-[#0F0F15] rounded-3xl border border-white/5 flex flex-col gap-4">
@@ -52,18 +39,6 @@ export default function TimelinePanel({
           <h2 className="text-sm font-black uppercase tracking-widest">Línea de Tiempo</h2>
         </div>
         <div className="flex items-center justify-between md:justify-end gap-3">
-          <PlaybackControls
-            isPlaying={isClipPlaying}
-            disabled={controlsDisabled}
-            onTogglePlay={isClipPlaying ? onPause : onPlay}
-            onRestart={onRestart}
-            onStop={onStop}
-            playPauseButtonClassName="bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30"
-            restartButtonClassName="bg-white/5 hover:bg-white/10 text-slate-400"
-            stopButtonClassName="bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30"
-            disabledButtonClassName="bg-white/5 text-slate-600 cursor-not-allowed"
-            iconClassName="w-3.5 h-3.5"
-          />
           <div className="text-[10px] font-mono text-slate-500 text-right md:text-left">
             {formatSeconds(clipStart)} - {formatSeconds(clipEnd)} / {formatSeconds(videoDuration)}
           </div>

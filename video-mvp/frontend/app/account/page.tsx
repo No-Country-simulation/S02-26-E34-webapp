@@ -2,11 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { Globe, Palette, Bell, Video, Shield, Lock, LogOut, Share2, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Globe, Video, Shield, Lock, LogOut, Share2, CheckCircle2, Loader2 } from 'lucide-react';
 import { showSuccess, showError } from '@/lib/sweetalert';
 import { api } from '@/lib/api';
+import { useTheme } from '@/components/ThemeProvider';
 
 export default function SettingsPage() {
+    const { theme, setTheme } = useTheme();
     const [isLoading, setIsLoading] = useState(true);
     // Mock settings state
     const [settings, setSettings] = useState({
@@ -23,8 +25,7 @@ export default function SettingsPage() {
     const [socialConnections, setSocialConnections] = useState({
         tiktok: { connected: false, username: null, displayName: 'TikTok' },
         instagram: { connected: true, username: '@carlos_creator', displayName: 'Instagram' },
-        youtube: { connected: false, username: null, displayName: 'YouTube' },
-        facebook: { connected: false, username: null, displayName: 'Facebook' }
+        youtube: { connected: false, username: null, displayName: 'YouTube' }
     });
 
     const toggleSetting = (key: keyof typeof settings) => {
@@ -35,13 +36,19 @@ export default function SettingsPage() {
     };
 
     useEffect(() => {
+        setSettings(prev => ({ ...prev, theme: theme === 'light' ? 'light' : 'dark' }));
+    }, [theme]);
+
+    useEffect(() => {
         const fetchSettings = async () => {
             try {
                 const res = await api.get('/users/me');
                 if (res.data.settings) {
+                    const persistedTheme = res.data.settings.theme === 'light' ? 'light' : 'dark';
+                    setTheme(persistedTheme);
                     setSettings({
                         language: res.data.settings.language || 'es',
-                        theme: res.data.settings.theme || 'dark',
+                        theme: persistedTheme,
                         emailNotifications: res.data.settings.email_notifications ?? true,
                         defaultResolution: res.data.settings.default_resolution || '1080p',
                         verticalFormat: res.data.settings.vertical_format || '9:16',
@@ -51,7 +58,21 @@ export default function SettingsPage() {
                 }
 
                 if (res.data.social_connections) {
-                    setSocialConnections(res.data.social_connections);
+                    setSocialConnections(prev => ({
+                        ...prev,
+                        tiktok: {
+                            ...prev.tiktok,
+                            ...(res.data.social_connections.tiktok || {})
+                        },
+                        instagram: {
+                            ...prev.instagram,
+                            ...(res.data.social_connections.instagram || {})
+                        },
+                        youtube: {
+                            ...prev.youtube,
+                            ...(res.data.social_connections.youtube || {})
+                        }
+                    }));
                 }
             } catch (error) {
                 console.error("Error fetching settings:", error);
@@ -122,7 +143,7 @@ export default function SettingsPage() {
                     {/* Header */}
                     <div>
                         <h1 className="text-3xl font-bold text-foreground mb-2">Configuración</h1>
-                        <p className="text-slate-400">Gestiona tus preferencias y configuración de la plataforma</p>
+                        <p className="text-muted-foreground">Gestiona tus preferencias y configuración de la plataforma</p>
                     </div>
 
                     {/* General Preferences */}
@@ -136,10 +157,10 @@ export default function SettingsPage() {
 
                         <div className="space-y-6">
                             {/* Language */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Idioma</p>
-                                    <p className="text-sm text-slate-400">Selecciona el idioma de la interfaz</p>
+                                    <p className="text-sm text-muted-foreground">Selecciona el idioma de la interfaz</p>
                                 </div>
                                 <select
                                     value={settings.language}
@@ -153,18 +174,18 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Theme */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Modo oscuro</p>
-                                    <p className="text-sm text-slate-400">Tema visual de la aplicación</p>
+                                    <p className="text-sm text-muted-foreground">Tema visual de la aplicación</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-400 text-sm">Claro</span>
+                                    <span className="text-muted-foreground text-sm">Claro</span>
                                     <button
-                                        onClick={() => setSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-                                        className={`w-14 h-7 rounded-full relative transition-colors ${settings.theme === 'dark' ? 'bg-[#3b2bee]' : 'bg-slate-600'}`}
+                                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                                        className={`w-14 h-7 rounded-full relative transition-colors ${theme === 'dark' ? 'bg-[#3b2bee]' : 'bg-muted'}`}
                                     >
-                                        <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform duration-200 ${settings.theme === 'dark' ? 'translate-x-8' : 'translate-x-1'}`}></div>
+                                        <div className={`w-5 h-5 bg-card border border-border rounded-full absolute top-1 transition-transform duration-200 ${theme === 'dark' ? 'translate-x-8' : 'translate-x-1'}`}></div>
                                     </button>
                                     <span className="text-foreground text-sm">Oscuro</span>
                                 </div>
@@ -174,13 +195,13 @@ export default function SettingsPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Notificaciones por email</p>
-                                    <p className="text-sm text-slate-400">Recibe actualizaciones sobre tus videos</p>
+                                    <p className="text-sm text-muted-foreground">Recibe actualizaciones sobre tus videos</p>
                                 </div>
                                 <button
                                     onClick={() => toggleSetting('emailNotifications')}
-                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.emailNotifications ? 'bg-[#3b2bee]' : 'bg-slate-600'}`}
+                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.emailNotifications ? 'bg-[#3b2bee]' : 'bg-muted'}`}
                                 >
-                                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform duration-200 ${settings.emailNotifications ? 'translate-x-8' : 'translate-x-1'}`}></div>
+                                    <div className={`w-5 h-5 bg-card border border-border rounded-full absolute top-1 transition-transform duration-200 ${settings.emailNotifications ? 'translate-x-8' : 'translate-x-1'}`}></div>
                                 </button>
                             </div>
                         </div>
@@ -197,10 +218,10 @@ export default function SettingsPage() {
 
                         <div className="space-y-6">
                             {/* Resolution */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Resolución por defecto</p>
-                                    <p className="text-sm text-slate-400">Calidad de exportación predeterminada</p>
+                                    <p className="text-sm text-muted-foreground">Calidad de exportación predeterminada</p>
                                 </div>
                                 <select
                                     value={settings.defaultResolution}
@@ -215,10 +236,10 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Vertical Format */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Formato vertical</p>
-                                    <p className="text-sm text-slate-400">Relación de aspecto para videos verticales</p>
+                                    <p className="text-sm text-muted-foreground">Relación de aspecto para videos verticales</p>
                                 </div>
                                 <select
                                     value={settings.verticalFormat}
@@ -232,16 +253,16 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Auto Subtitles */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border/60">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Subtítulos automáticos</p>
-                                    <p className="text-sm text-slate-400">Generar subtítulos por defecto</p>
+                                    <p className="text-sm text-muted-foreground">Generar subtítulos por defecto</p>
                                 </div>
                                 <button
                                     onClick={() => toggleSetting('autoSubtitles')}
-                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.autoSubtitles ? 'bg-[#3b2bee]' : 'bg-slate-600'}`}
+                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.autoSubtitles ? 'bg-[#3b2bee]' : 'bg-muted'}`}
                                 >
-                                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform duration-200 ${settings.autoSubtitles ? 'translate-x-8' : 'translate-x-1'}`}></div>
+                                    <div className={`w-5 h-5 bg-card border border-border rounded-full absolute top-1 transition-transform duration-200 ${settings.autoSubtitles ? 'translate-x-8' : 'translate-x-1'}`}></div>
                                 </button>
                             </div>
 
@@ -249,13 +270,13 @@ export default function SettingsPage() {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div>
                                     <p className="text-foreground font-medium mb-1">Branding automático</p>
-                                    <p className="text-sm text-slate-400">Aplicar logo y marca en todos los videos</p>
+                                    <p className="text-sm text-muted-foreground">Aplicar logo y marca en todos los videos</p>
                                 </div>
                                 <button
                                     onClick={() => toggleSetting('autoBranding')}
-                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.autoBranding ? 'bg-[#3b2bee]' : 'bg-slate-600'}`}
+                                    className={`w-14 h-7 rounded-full relative transition-colors ${settings.autoBranding ? 'bg-[#3b2bee]' : 'bg-muted'}`}
                                 >
-                                    <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform duration-200 ${settings.autoBranding ? 'translate-x-8' : 'translate-x-1'}`}></div>
+                                    <div className={`w-5 h-5 bg-card border border-border rounded-full absolute top-1 transition-transform duration-200 ${settings.autoBranding ? 'translate-x-8' : 'translate-x-1'}`}></div>
                                 </button>
                             </div>
                         </div>
@@ -269,21 +290,21 @@ export default function SettingsPage() {
                             </div>
                             <h2 className="text-xl font-bold text-foreground">Redes Sociales</h2>
                         </div>
-                        <p className="text-slate-400 mb-6 text-sm">Conecta tus cuentas para exportar videos directamente desde el editor</p>
+                        <p className="text-muted-foreground mb-6 text-sm">Conecta tus cuentas para exportar videos directamente desde el editor</p>
 
                         <div className="space-y-4">
                             {/* TikTok */}
-                            <div className="p-4 bg-background/50 rounded-lg border border-white/5 hover:border-border transition-all duration-200">
+                            <div className="p-4 bg-background/50 rounded-lg border border-border/60 hover:border-border transition-all duration-200">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                                             <Image src="/images/social/tiktok.png" alt="TikTok" width={48} height={48} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="text-foreground font-medium">TikTok</p>
                                                 {!socialConnections.tiktok.connected && (
-                                                    <span className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">No conectado</span>
+                                                    <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">No conectado</span>
                                                 )}
                                                 {socialConnections.tiktok.connected && (
                                                     <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full flex items-center gap-1">
@@ -292,7 +313,7 @@ export default function SettingsPage() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-slate-400">
+                                            <p className="text-sm text-muted-foreground">
                                                 {socialConnections.tiktok.connected
                                                     ? socialConnections.tiktok.username
                                                     : 'Publica tus shorts automáticamente en TikTok'}
@@ -304,7 +325,7 @@ export default function SettingsPage() {
                                             ? handleDisconnect('tiktok')
                                             : handleConnect('tiktok')}
                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${socialConnections.tiktok.connected
-                                            ? 'bg-foreground/5 hover:bg-white/10 text-slate-300 hover:text-foreground border border-border'
+                                            ? 'bg-foreground/5 hover:bg-accent text-muted-foreground hover:text-foreground border border-border'
                                             : 'bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white shadow-lg shadow-[#3b2bee]/20'
                                             }`}
                                     >
@@ -314,17 +335,17 @@ export default function SettingsPage() {
                             </div>
 
                             {/* Instagram */}
-                            <div className="p-4 bg-background/50 rounded-lg border border-white/5 hover:border-border transition-all duration-200">
+                            <div className="p-4 bg-background/50 rounded-lg border border-border/60 hover:border-border transition-all duration-200">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                                             <Image src="/images/social/instagram.png" alt="Instagram" width={48} height={48} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="text-foreground font-medium">Instagram</p>
                                                 {!socialConnections.instagram.connected && (
-                                                    <span className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">No conectado</span>
+                                                    <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">No conectado</span>
                                                 )}
                                                 {socialConnections.instagram.connected && (
                                                     <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full flex items-center gap-1">
@@ -333,7 +354,7 @@ export default function SettingsPage() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-slate-400">
+                                            <p className="text-sm text-muted-foreground">
                                                 {socialConnections.instagram.connected
                                                     ? socialConnections.instagram.username
                                                     : 'Sube Reels directamente a tu cuenta'}
@@ -345,7 +366,7 @@ export default function SettingsPage() {
                                             ? handleDisconnect('instagram')
                                             : handleConnect('instagram')}
                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${socialConnections.instagram.connected
-                                            ? 'bg-foreground/5 hover:bg-white/10 text-slate-300 hover:text-foreground border border-border'
+                                            ? 'bg-foreground/5 hover:bg-accent text-muted-foreground hover:text-foreground border border-border'
                                             : 'bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white shadow-lg shadow-[#3b2bee]/20'
                                             }`}
                                     >
@@ -355,17 +376,17 @@ export default function SettingsPage() {
                             </div>
 
                             {/* YouTube */}
-                            <div className="p-4 bg-background/50 rounded-lg border border-white/5 hover:border-border transition-all duration-200">
+                            <div className="p-4 bg-background/50 rounded-lg border border-border/60 hover:border-border transition-all duration-200">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
                                             <Image src="/images/social/youtube.png" alt="YouTube" width={48} height={48} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-1">
                                                 <p className="text-foreground font-medium">YouTube</p>
                                                 {!socialConnections.youtube.connected && (
-                                                    <span className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">No conectado</span>
+                                                    <span className="px-2 py-0.5 bg-muted text-muted-foreground text-xs rounded-full">No conectado</span>
                                                 )}
                                                 {socialConnections.youtube.connected && (
                                                     <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full flex items-center gap-1">
@@ -374,7 +395,7 @@ export default function SettingsPage() {
                                                     </span>
                                                 )}
                                             </div>
-                                            <p className="text-sm text-slate-400">
+                                            <p className="text-sm text-muted-foreground">
                                                 {socialConnections.youtube.connected
                                                     ? socialConnections.youtube.username
                                                     : 'Publica Shorts en tu canal de YouTube'}
@@ -386,7 +407,7 @@ export default function SettingsPage() {
                                             ? handleDisconnect('youtube')
                                             : handleConnect('youtube')}
                                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${socialConnections.youtube.connected
-                                            ? 'bg-foreground/5 hover:bg-white/10 text-slate-300 hover:text-foreground border border-border'
+                                            ? 'bg-foreground/5 hover:bg-accent text-muted-foreground hover:text-foreground border border-border'
                                             : 'bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white shadow-lg shadow-[#3b2bee]/20'
                                             }`}
                                     >
@@ -395,51 +416,11 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            {/* Facebook */}
-                            <div className="p-4 bg-background/50 rounded-lg border border-white/5 hover:border-border transition-all duration-200">
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                            <Image src="/images/social/facebook.png" alt="Facebook" width={48} height={48} className="w-full h-full object-cover" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <p className="text-foreground font-medium">Facebook</p>
-                                                {!socialConnections.facebook.connected && (
-                                                    <span className="px-2 py-0.5 bg-slate-700 text-slate-300 text-xs rounded-full">No conectado</span>
-                                                )}
-                                                {socialConnections.facebook.connected && (
-                                                    <span className="px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-xs rounded-full flex items-center gap-1">
-                                                        <CheckCircle2 className="w-3 h-3" />
-                                                        Conectado
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <p className="text-sm text-slate-400">
-                                                {socialConnections.facebook.connected
-                                                    ? socialConnections.facebook.username
-                                                    : 'Comparte videos en tu página de Facebook'}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <button
-                                        onClick={() => socialConnections.facebook.connected
-                                            ? handleDisconnect('facebook')
-                                            : handleConnect('facebook')}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 whitespace-nowrap ${socialConnections.facebook.connected
-                                            ? 'bg-foreground/5 hover:bg-white/10 text-slate-300 hover:text-foreground border border-border'
-                                            : 'bg-[#3b2bee] hover:bg-[#3b2bee]/90 text-white shadow-lg shadow-[#3b2bee]/20'
-                                            }`}
-                                    >
-                                        {socialConnections.facebook.connected ? 'Desconectar' : 'Conectar'}
-                                    </button>
-                                </div>
-                            </div>
                         </div>
 
                         {/* Info Box */}
                         <div className="mt-6 p-4 bg-[#3b2bee]/5 border border-[#3b2bee]/20 rounded-lg">
-                            <p className="text-sm text-slate-400">
+                            <p className="text-sm text-muted-foreground">
                                 <span className="text-[#3b2bee] font-medium">Tip:</span> Una vez conectadas tus cuentas, podrás exportar videos directamente desde el editor sin descargarlos manualmente.
                             </p>
                         </div>
@@ -456,31 +437,31 @@ export default function SettingsPage() {
 
                         <div className="space-y-4">
                             {/* Change Password */}
-                            <button className="w-full flex items-center justify-between p-4 bg-background/50 hover:bg-background rounded-lg border border-white/5 hover:border-border transition-all duration-200 group">
+                            <button className="w-full flex items-center justify-between p-4 bg-background/50 hover:bg-background rounded-lg border border-border/60 hover:border-border transition-all duration-200 group">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-foreground/5 rounded-lg flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                                        <Lock className="w-5 h-5 text-slate-400" />
+                                    <div className="w-10 h-10 bg-foreground/5 rounded-lg flex items-center justify-center group-hover:bg-accent transition-colors">
+                                        <Lock className="w-5 h-5 text-muted-foreground" />
                                     </div>
                                     <div className="text-left">
                                         <p className="text-foreground font-medium">Cambiar contraseña</p>
-                                        <p className="text-sm text-slate-400">Actualiza tu contraseña de acceso</p>
+                                        <p className="text-sm text-muted-foreground">Actualiza tu contraseña de acceso</p>
                                     </div>
                                 </div>
-                                <div className="text-slate-400 group-hover:text-foreground transition-colors">→</div>
+                                <div className="text-muted-foreground group-hover:text-foreground transition-colors">→</div>
                             </button>
 
                             {/* Logout All Devices */}
-                            <button className="w-full flex items-center justify-between p-4 bg-background/50 hover:bg-background rounded-lg border border-white/5 hover:border-border transition-all duration-200 group">
+                            <button className="w-full flex items-center justify-between p-4 bg-background/50 hover:bg-background rounded-lg border border-border/60 hover:border-border transition-all duration-200 group">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-foreground/5 rounded-lg flex items-center justify-center group-hover:bg-white/10 transition-colors">
-                                        <LogOut className="w-5 h-5 text-slate-400" />
+                                    <div className="w-10 h-10 bg-foreground/5 rounded-lg flex items-center justify-center group-hover:bg-accent transition-colors">
+                                        <LogOut className="w-5 h-5 text-muted-foreground" />
                                     </div>
                                     <div className="text-left">
                                         <p className="text-foreground font-medium">Cerrar sesión en todos los dispositivos</p>
-                                        <p className="text-sm text-slate-400">Cierra todas las sesiones activas excepto esta</p>
+                                        <p className="text-sm text-muted-foreground">Cierra todas las sesiones activas excepto esta</p>
                                     </div>
                                 </div>
-                                <div className="text-slate-400 group-hover:text-foreground transition-colors">→</div>
+                                <div className="text-muted-foreground group-hover:text-foreground transition-colors">→</div>
                             </button>
                         </div>
                     </div>

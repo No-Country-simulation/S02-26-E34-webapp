@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react';
 import { CloudUpload } from 'lucide-react';
 import { Maximize } from 'lucide-react';
 import { DropzoneInputProps, DropzoneRootProps } from 'react-dropzone';
+import PlaybackControls from './PlaybackControls';
+
+const formatSeconds = (seconds: number): string => {
+    const total = Math.max(0, Math.floor(seconds));
+    const minutes = Math.floor(total / 60);
+    const remain = total % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remain).padStart(2, '0')}`;
+};
 
 interface Settings {
     selectionSize: number;
@@ -41,6 +49,15 @@ interface SourceFrameProps {
     getInputProps: (props?: DropzoneInputProps) => DropzoneInputProps;
     isDragActive: boolean;
     selectionSyncTick?: number;
+    isClipPlaying: boolean;
+    onPlay: () => void;
+    onPause: () => void;
+    onRestart: () => void;
+    onStop: () => void;
+    videoDuration: number;
+    clipStart: number;
+    clipEnd: number;
+    playheadTime: number;
 }
 
 export default function SourceFrame({
@@ -56,7 +73,17 @@ export default function SourceFrame({
     getInputProps,
     isDragActive,
     selectionSyncTick,
+    isClipPlaying,
+    onPlay,
+    onPause,
+    onRestart,
+    onStop,
+    videoDuration,
+    clipStart,
+    clipEnd,
+    playheadTime,
 }: SourceFrameProps) {
+    const controlsDisabled = !videoUrl || videoDuration <= 0 || clipEnd <= clipStart;
     const frameRef = useRef<HTMLDivElement>(null);
     const selectionRef = useRef<HTMLDivElement>(null);
     const dragStateRef = useRef<{
@@ -351,6 +378,37 @@ export default function SourceFrame({
                     </div>
                 )}
             </div>
+
+            {/* Playback Controls */}
+            {videoUrl && (
+                <div className="mt-4 flex items-center gap-3 p-3 bg-[#0F0F15] rounded-2xl border border-white/5">
+                    <PlaybackControls
+                        isPlaying={isClipPlaying}
+                        disabled={controlsDisabled}
+                        onTogglePlay={isClipPlaying ? onPause : onPlay}
+                        onRestart={onRestart}
+                        onStop={onStop}
+                        iconClassName="w-4 h-4"
+                    />
+
+                    <div className="flex-1 flex items-center gap-2">
+                        <span className="text-[10px] font-mono text-slate-500 w-10 text-right">
+                            {formatSeconds(playheadTime)}
+                        </span>
+                        <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-[#3b2bee] transition-all duration-100 rounded-full"
+                                style={{
+                                    width: `${clipEnd > clipStart ? ((playheadTime - clipStart) / (clipEnd - clipStart)) * 100 : 0}%`
+                                }}
+                            />
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500 w-10">
+                            {formatSeconds(clipEnd)}
+                        </span>
+                    </div>
+                </div>
+            )}
         </section>
     );
 }

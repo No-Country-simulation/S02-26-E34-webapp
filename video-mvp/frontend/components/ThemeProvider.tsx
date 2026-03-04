@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, useState } from 'react';
 
 type Theme = 'dark' | 'light' | 'system';
 
+const isValidTheme = (value: string): value is Theme => {
+    return value === 'dark' || value === 'light' || value === 'system';
+};
+
 interface ThemeProviderProps {
     children: React.ReactNode;
     defaultTheme?: Theme;
@@ -24,9 +28,14 @@ export function ThemeProvider({
     const [theme, setTheme] = useState<Theme>(defaultTheme);
 
     useEffect(() => {
-        const savedTheme = localStorage.getItem('app-theme') as Theme | null;
-        if (savedTheme) {
+        const savedTheme = localStorage.getItem('app-theme');
+        if (savedTheme && isValidTheme(savedTheme)) {
             setTheme(savedTheme);
+            return;
+        }
+
+        if (savedTheme && !isValidTheme(savedTheme)) {
+            localStorage.removeItem('app-theme');
         }
     }, []);
 
