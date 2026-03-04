@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download, Check, Loader2, Circle, Play, Pause, RotateCcw } from 'lucide-react';
+import { Smartphone, Heart, MessageCircle, Share2, RefreshCw, Download, Check, Loader2, Circle } from 'lucide-react';
+import PlaybackControls from './PlaybackControls';
 
 interface Settings {
     selectionSize: number;
@@ -35,7 +36,7 @@ interface PreviewPanelProps {
     settings: Settings;
     selectionArea: SelectionArea | null;
     previewVideoRef: React.RefObject<HTMLVideoElement | null>;
-    onConvert: () => void;
+    onDownloadLatestPreview: () => void;
     onGeneratePreview: () => void;
     isProcessing: boolean;
     isGeneratingPreview: boolean;
@@ -45,6 +46,7 @@ interface PreviewPanelProps {
     previewStages: Array<{id: string; label: string; status: 'pending' | 'active' | 'completed'}>;
     videoUrlExist: boolean;
     isBackendOnline: boolean | null;
+    canDownloadLatestPreview: boolean;
     socialConnections: {
         tiktok: { connected: boolean };
         instagram: { connected: boolean };
@@ -68,7 +70,7 @@ export default function PreviewPanel({
     settings,
     selectionArea,
     previewVideoRef,
-    onConvert,
+    onDownloadLatestPreview,
     onGeneratePreview,
     isProcessing,
     isGeneratingPreview,
@@ -78,6 +80,7 @@ export default function PreviewPanel({
     previewStages,
     videoUrlExist,
     isBackendOnline,
+    canDownloadLatestPreview,
     socialConnections
 }: PreviewPanelProps) {
     // Result video playback state
@@ -164,6 +167,15 @@ export default function PreviewPanel({
         video.currentTime = 0;
         setResultCurrentTime(0);
         video.play();
+    }, []);
+
+    const stopResultPlayback = useCallback(() => {
+        const video = resultVideoRef.current;
+        if (!video || !video.src || video.readyState < 1) return;
+        video.pause();
+        video.currentTime = 0;
+        setResultCurrentTime(0);
+        setIsResultPlaying(false);
     }, []);
 
     const handleSeekStart = useCallback(() => {
@@ -340,23 +352,17 @@ export default function PreviewPanel({
             {phoneState === 'result' && (
                 <div className="rounded-2xl border border-emerald-500/20 bg-[#050505] p-4 space-y-3">
                     <div className="flex items-center gap-3">
-                        <button
-                            onClick={toggleResultPlayback}
-                            className="p-2 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl transition-colors"
-                        >
-                            {isResultPlaying ? (
-                                <Pause className="w-4 h-4 text-emerald-400" />
-                            ) : (
-                                <Play className="w-4 h-4 text-emerald-400 fill-emerald-400" />
-                            )}
-                        </button>
-                        <button
-                            onClick={restartResultPlayback}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
-                            title="Reiniciar"
-                        >
-                            <RotateCcw className="w-4 h-4 text-slate-400" />
-                        </button>
+                        <PlaybackControls
+                            isPlaying={isResultPlaying}
+                            onTogglePlay={toggleResultPlayback}
+                            onRestart={restartResultPlayback}
+                            onStop={stopResultPlayback}
+                            playPauseButtonClassName="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400"
+                            restartButtonClassName="bg-white/5 hover:bg-white/10 text-slate-400"
+                            stopButtonClassName="bg-white/5 hover:bg-white/10 text-slate-400"
+                            disabledButtonClassName="bg-white/5 text-slate-600 cursor-not-allowed"
+                            iconClassName="w-4 h-4"
+                        />
 
                         <div className="flex-1 flex items-center gap-2">
                             <span className="text-[10px] font-mono text-slate-500 w-8 text-right">{formatTime(resultCurrentTime)}</span>
@@ -461,15 +467,11 @@ export default function PreviewPanel({
                 </div>
 
                 <button
-                    onClick={onConvert}
-                    disabled={isProcessing || !videoUrlExist || isBackendOnline === false}
-                    className={`w-full py-5 rounded-3xl font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-4 transition-all active:scale-[0.98] mt-4 ${isProcessing || !videoUrlExist || isBackendOnline === false ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5' : 'bg-[#3b2bee] text-white shadow-[0_20px_40px_rgba(59,43,238,0.3)] hover:shadow-[0_20px_50px_rgba(59,43,238,0.5)] active:shadow-inner'}`}
+                    onClick={onDownloadLatestPreview}
+                    disabled={!canDownloadLatestPreview || isBackendOnline === false}
+                    className={`w-full py-5 rounded-3xl font-black uppercase tracking-[0.3em] text-xs flex items-center justify-center gap-4 transition-all active:scale-[0.98] mt-4 ${!canDownloadLatestPreview || isBackendOnline === false ? 'bg-white/5 text-slate-600 cursor-not-allowed border border-white/5' : 'bg-[#3b2bee] text-white shadow-[0_20px_40px_rgba(59,43,238,0.3)] hover:shadow-[0_20px_50px_rgba(59,43,238,0.5)] active:shadow-inner'}`}
                 >
-                    {isProcessing ? (
-                        <><RefreshCw className="w-5 h-5 animate-spin" /> {progress}%</>
-                    ) : (
-                        <><Download className="w-5 h-5" /> Descargar</>
-                    )}
+                    <><Download className="w-5 h-5" /> Descargar</>
                 </button>
             </div>
         </section>

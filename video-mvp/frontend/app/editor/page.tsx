@@ -188,6 +188,26 @@ export default function ImprovedEditorPage() {
     syncVideosToTime(clipStart);
   }, [pauseClipPlayback, syncVideosToTime, clipStart]);
 
+  const restartClipPlayback = useCallback(async () => {
+    if (!videoUrl || clipEnd <= clipStart) return;
+
+    pauseClipPlayback();
+    syncVideosToTime(clipStart);
+
+    const playPromises: Promise<void>[] = [];
+    if (videoRef.current) {
+      playPromises.push(videoRef.current.play());
+    }
+    if (previewVideoRef.current) {
+      playPromises.push(previewVideoRef.current.play());
+    }
+
+    if (playPromises.length === 0) return;
+
+    await Promise.allSettled(playPromises);
+    setIsClipPlaying(true);
+  }, [videoUrl, clipEnd, clipStart, pauseClipPlayback, syncVideosToTime]);
+
   const resetEditorForNewVideo = useCallback(() => {
     pauseClipPlayback();
     if (generatedPreviewUrl) {
@@ -265,6 +285,18 @@ export default function ImprovedEditorPage() {
       setIsGeneratingPreview(false);
     }
   }, [videoFileLocal, isGeneratingPreview, clipEnd, clipStart, settings.cropX, settings.cropY, selectionArea, playheadTime]);
+
+  const handleDownloadLatestPreview = useCallback(() => {
+    if (!generatedPreviewUrl) return;
+
+    const readableTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const anchor = document.createElement('a');
+    anchor.href = generatedPreviewUrl;
+    anchor.download = `verv.io-${readableTimestamp}.mp4`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+  }, [generatedPreviewUrl]);
 
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
@@ -689,6 +721,7 @@ export default function ImprovedEditorPage() {
             playheadTime={playheadTime}
             onPlay={playSelectedRange}
             onPause={pauseClipPlayback}
+            onRestart={restartClipPlayback}
             onStop={stopClipPlayback}
             onClipStartChange={handleClipStartChange}
             onClipEndChange={handleClipEndChange}
@@ -720,7 +753,7 @@ export default function ImprovedEditorPage() {
             settings={settings}
             selectionArea={selectionArea}
             previewVideoRef={previewVideoRef}
-            onConvert={handleConvert}
+            onDownloadLatestPreview={handleDownloadLatestPreview}
             onGeneratePreview={handleGeneratePreview}
             isProcessing={isProcessing}
             isGeneratingPreview={isGeneratingPreview}
@@ -730,6 +763,7 @@ export default function ImprovedEditorPage() {
             previewStages={previewStages}
             videoUrlExist={!!videoUrl}
             isBackendOnline={isBackendOnline}
+            canDownloadLatestPreview={!!generatedPreviewUrl}
             socialConnections={socialConnections}
           />
         </div>

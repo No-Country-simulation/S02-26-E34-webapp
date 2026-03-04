@@ -335,7 +335,7 @@ export default function SourceFrame({
                                     className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-12 rounded-md bg-[#3b2bee]/80 border border-white/30 cursor-ew-resize pointer-events-auto"
                                 />
                                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-[#3b2bee] text-[8px] md:text-[10px] font-black text-white rounded-full uppercase tracking-[0.2em] shadow-xl flex items-center gap-2 whitespace-nowrap">
-                                    Área de Recorte
+                                    Área de Selección de Sujeto
                                 </div>
                                 <div className="absolute -top-1 -left-1 w-4 h-4 md:w-5 md:h-5 border-t-4 border-l-4 border-white rounded-tl-sm"></div>
                                 <div className="absolute -top-1 -right-1 w-4 h-4 md:w-5 md:h-5 border-t-4 border-r-4 border-white rounded-tr-sm"></div>

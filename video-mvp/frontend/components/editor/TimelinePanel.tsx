@@ -1,7 +1,6 @@
 'use client';
 
-import { Play, Pause } from 'lucide-react';
-import { Square } from 'lucide-react';
+import PlaybackControls from './PlaybackControls';
 
 interface TimelinePanelProps {
   videoUrl: string | null;
@@ -12,6 +11,7 @@ interface TimelinePanelProps {
   playheadTime: number;
   onPlay: () => void;
   onPause: () => void;
+  onRestart: () => void;
   onStop: () => void;
   onClipStartChange: (value: number) => void;
   onClipEndChange: (value: number) => void;
@@ -33,6 +33,7 @@ export default function TimelinePanel({
   playheadTime,
   onPlay,
   onPause,
+  onRestart,
   onStop,
   onClipStartChange,
   onClipEndChange,
@@ -51,41 +52,18 @@ export default function TimelinePanel({
           <h2 className="text-sm font-black uppercase tracking-widest">Línea de Tiempo</h2>
         </div>
         <div className="flex items-center justify-between md:justify-end gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onPlay}
-              disabled={controlsDisabled || isClipPlaying}
-              title="Play"
-              className={`h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center transition-all ${controlsDisabled || isClipPlaying
-                ? 'bg-white/5 text-slate-600 cursor-not-allowed'
-                : 'bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30'
-                }`}
-            >
-              <Play className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onPause}
-              disabled={controlsDisabled || !isClipPlaying}
-              title="Pausar"
-              className={`h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center transition-all ${controlsDisabled || !isClipPlaying
-                ? 'bg-white/5 text-slate-600 cursor-not-allowed'
-                : 'bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30'
-                }`}
-            >
-              <Pause className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onStop}
-              disabled={controlsDisabled}
-              title="Stop"
-              className={`h-8 w-8 rounded-lg border border-white/10 flex items-center justify-center transition-all ${controlsDisabled
-                ? 'bg-white/5 text-slate-600 cursor-not-allowed'
-                : 'bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30'
-                }`}
-            >
-              <Square className="w-3.5 h-3.5" />
-            </button>
-          </div>
+          <PlaybackControls
+            isPlaying={isClipPlaying}
+            disabled={controlsDisabled}
+            onTogglePlay={isClipPlaying ? onPause : onPlay}
+            onRestart={onRestart}
+            onStop={onStop}
+            playPauseButtonClassName="bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30"
+            restartButtonClassName="bg-white/5 hover:bg-white/10 text-slate-400"
+            stopButtonClassName="bg-[#3b2bee]/15 text-[#8f85ff] hover:bg-[#3b2bee]/30"
+            disabledButtonClassName="bg-white/5 text-slate-600 cursor-not-allowed"
+            iconClassName="w-3.5 h-3.5"
+          />
           <div className="text-[10px] font-mono text-slate-500 text-right md:text-left">
             {formatSeconds(clipStart)} - {formatSeconds(clipEnd)} / {formatSeconds(videoDuration)}
           </div>
