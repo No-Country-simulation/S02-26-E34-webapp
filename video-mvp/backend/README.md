@@ -82,12 +82,29 @@ uv run python main.py
 
 ## 🧪 Scripts operativos
 
+### Seed del usuario superadmin
+
+Crea el usuario administrador inicial en la base de datos:
+
 ```bash
-uv run python scripts/seed_admin.py
-uv run python scripts/database_init.py
-uv run python scripts/check_gemini_models.py
-uv run python scripts/verify_environment.py
+cd video-mvp/backend
+PYTHONPATH=. uv run python scripts/seed_admin.py
 ```
+
+- **Email:** `admin@verv.io`
+- **Password:** `pwdadmin123`
+- Si el usuario ya existe, el script lo detecta y no lo duplica.
+- Requiere MongoDB corriendo y las variables de entorno configuradas en `.env`.
+
+### Otros scripts
+
+```bash
+PYTHONPATH=. uv run python scripts/database_init.py
+PYTHONPATH=. uv run python scripts/check_gemini_models.py
+PYTHONPATH=. uv run python scripts/verify_environment.py
+```
+
+> **Nota:** El prefijo `PYTHONPATH=.` es necesario para que Python encuentre el módulo `app` al ejecutar scripts desde la carpeta `scripts/`.
 
 ## ✅ Verificación rápida post-clone
 
